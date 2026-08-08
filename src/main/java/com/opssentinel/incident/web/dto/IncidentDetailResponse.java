@@ -9,8 +9,9 @@ import java.util.List;
 
 /**
  * 사건 상세(GET /api/incidents/{id}) 응답 DTO. API 명세서 3장 응답 예시의 필드 구성을 그대로
- * 따른다 — resourceName은 Resource 도메인을 별도 조회해 채우고, aiSummary는 아직 AI 연동이
- * 없어 Incident.aiSummary가 null이면 그대로 null을 반환한다.
+ * 따른다 — resourceName은 Resource 도메인을 별도 조회해 채우고, aiSummary는 OpenAI 연동
+ * (AiSummaryService) 결과를 그대로 반환한다. OpenAI 호출이 비활성/실패/타임아웃이면
+ * Incident.aiSummary에 폴백 문장이 채워져 있으므로 이 필드가 null이 되는 경우는 거의 없다.
  */
 @Schema(description = "사건 상세 응답(조치이력·AI요약 포함)")
 public record IncidentDetailResponse(
