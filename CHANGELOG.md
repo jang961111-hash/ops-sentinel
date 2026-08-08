@@ -10,6 +10,7 @@
 - JWT 최소 구현으로 관리자 전용 엔드포인트(`GET /api/audit-logs`, `PATCH /api/incidents/{id}/resolve`) 보호 — `POST /api/auth/token`(고정 admin 계정 검증, `admin.password` 프로퍼티)으로 토큰 발급, `JwtTokenProvider`(jjwt, `jwt.secret` 미설정 시 랜덤 키 생성)로 서명·검증, `JwtAuthenticationFilter`(`OncePerRequestFilter`)가 위 두 엔드포인트만 정확히 매칭해 `Authorization: Bearer` 헤더를 강제하고 실패 시 공통 에러 포맷(`{timestamp,status,error,message,path}`)으로 401 응답. Spring Security 풀스택 대신 jjwt+커스텀 필터를 택한 이유는 회원/역할 체계가 없는 이 프로젝트 스케일에 풀스택 도입이 과설계이기 때문(US-014) (#14)
 - Swagger UI에 JWT Bearer 토큰 입력 UI(Authorize 버튼) 노출 — `OpenApiConfig`로 `bearerAuth` 시큐리티 스키마 등록, 보호 대상 두 엔드포인트에만 `@SecurityRequirement` 적용 (#14)
 - `AiSummaryService` 추가 — OpenAI Chat Completions API(`gpt-4o-mini`, Spring 6 `RestClient` + `SimpleClientHttpRequestFactory` 타임아웃 3초)로 Incident 판단근거 자연어 요약(aiSummary)을 생성해 `IncidentActionService.decideAndRecord` 조치 결정 직후 채워 저장. `OPENAI_API_KEY` 미설정 시 네트워크 호출 자체를 건너뛰고, 호출 실패/타임아웃 시에도 예외를 흡수해 기본 템플릿 문장으로 대체하므로 연동 장애가 Incident 생성 흐름을 막지 않음(US-013) (#13)
+- 테스트 코드 보강(US-015) — `IncidentRuleEngineTest`에 파라미터화 테스트 13건 추가해 CPU/MEM/QUEUE_DEPTH/ERROR_RATE 4개 규칙의 LOW/MEDIUM/HIGH/CRITICAL 심각도 구간 경계값을 전부 커버(기존엔 MEM_EXCEEDED 테스트 자체가 없었음). 지금까지 테스트가 없었던 `JwtTokenProviderTest`(발급/검증/만료/시크릿 불일치/형식오류 5건), `AiSummaryServiceTest`(OpenAI 미설정 시 기본 템플릿 폴백 2건) 신규 추가. 기존 `IncidentDetectionConcurrencyTest`(동시요청 10건 재현)는 검토 결과 요구사항을 이미 충족해 그대로 유지 (#15)
 
 ### Changed
 - `./gradlew test`가 셸의 `OPENAI_API_KEY`를 테스트 JVM에 전달하지 않도록 `build.gradle`에 고정 — 기존 통합테스트가 매 빌드마다 실제 OpenAI를 호출해 과금·플레이키(flaky)해지는 것을 방지하고 폴백 경로를 항상 검증하게 함 (#13)
