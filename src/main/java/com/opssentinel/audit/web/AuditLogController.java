@@ -5,6 +5,7 @@ import com.opssentinel.audit.service.AuditLogService;
 import com.opssentinel.audit.web.dto.AuditLogResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,7 +23,8 @@ public class AuditLogController {
 
     private final AuditLogService auditLogService;
 
-    @Operation(summary = "감사로그 목록 조회", description = "actorType/resultStatus/targetType으로 필터링 가능하며, 페이지 단위로 반환한다.")
+    @Operation(summary = "감사로그 목록 조회", description = "actorType/resultStatus/targetType으로 필터링 가능하며, 페이지 단위로 반환한다. 관리자 전용 — JWT 필요.")
+    @SecurityRequirement(name = "bearerAuth")
     @GetMapping
     public Page<AuditLogResponse> list(
             @Parameter(description = "감사 주체 필터") @RequestParam(required = false) String actorType,

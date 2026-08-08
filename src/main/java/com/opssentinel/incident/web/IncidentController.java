@@ -10,6 +10,7 @@ import com.opssentinel.resource.entity.Resource;
 import com.opssentinel.resource.repository.ResourceRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,8 @@ public class IncidentController {
         return IncidentDetailResponse.from(incident, resolveResourceName(incident));
     }
 
-    @Operation(summary = "사건 해결 처리", description = "status를 RESOLVED로 전이하고 resolvedAt을 기록한다.")
+    @Operation(summary = "사건 해결 처리", description = "status를 RESOLVED로 전이하고 resolvedAt을 기록한다. 관리자 전용 — JWT 필요.")
+    @SecurityRequirement(name = "bearerAuth")
     @PatchMapping("/{id}/resolve")
     public IncidentDetailResponse resolve(@PathVariable Long id) {
         Incident incident = incidentQueryService.resolve(id);
