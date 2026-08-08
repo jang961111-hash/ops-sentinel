@@ -1,0 +1,45 @@
+# Spring Boot / Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### VS Code ###
+.vscode/
+
+### macOS ###
+.DS_Store
+
+### 환경 변수 / 시크릿 ###
+.env
+application-local.yml
+application-secrets.yml
+
+### 참고용 자료 (코드에 반영 안 함, 저장소 비대화 방지) ###
+docs/reference/
+
+### OMC 런타임 아티팩트 (세션 상태, 커밋 대상 아님) ###
+.omc/*
+!.omc/skills/

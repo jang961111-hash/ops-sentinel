@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Ops Sentinel - 와이어프레임 (Low-fidelity)</title>
+<style>
+  body { font-family: -apple-system, "Malgun Gothic", sans-serif; background:#f4f5f7; margin:0; padding:32px; color:#222; }
+  h1 { font-size:20px; }
+  p.note { color:#555; background:#fff8e1; border:1px solid #f0d98c; padding:10px 14px; border-radius:8px; font-size:13px; max-width:700px; }
+  .screens { display:flex; gap:28px; flex-wrap:wrap; margin-top:24px; }
+  .frame { width:420px; background:#fff; border:2px solid #333; border-radius:10px; overflow:hidden; }
+  .frame h3 { margin:0; padding:10px 14px; background:#eee; border-bottom:2px solid #333; font-size:14px; }
+  .body { padding:14px; }
+  .box { border:1.5px dashed #999; background:#fafafa; border-radius:6px; padding:10px; margin-bottom:10px; font-size:12px; color:#666; }
+  .row { display:flex; gap:8px; }
+  .row .box { flex:1; }
+  .badge { display:inline-block; font-size:10px; padding:2px 6px; border-radius:4px; background:#ddd; margin-right:4px; }
+  .badge.high { background:#f5b7b1; }
+  .badge.low { background:#a9dfbf; }
+  .list-item { border:1px solid #ddd; border-radius:6px; padding:8px; margin-bottom:6px; font-size:12px; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+  <h1>Ops Sentinel — 와이어프레임 (저충실도)</h1>
+  <p class="note">
+    ※ Stitch(Google AI 디자인 툴)는 구글 계정 로그인 기반 웹 도구라 이 세션에서 직접 조작할 수는 없어. 아래는 Stitch에 그대로 입력해서 고충실도 목업으로
+    바로 확장할 수 있도록 만든 화면 구조(레이아웃/컴포넌트 명세)야 — 이 파일의 각 박스 설명을 Stitch 프롬프트에 그대로 넣으면 됨.
+  </p>
+
+  <div class="screens">
+    <div class="frame">
+      <h3>① 대시보드 — 사건 목록 (/incidents)</h3>
+      <div class="body">
+        <div class="box">상단바: "Ops Sentinel" 로고 + 헬스상태 배지(초록/빨강)</div>
+        <div class="row">
+          <div class="box">필터: 상태 ▾</div>
+          <div class="box">심각도 ▾</div>
+          <div class="box">리소스 ▾</div>
+        </div>
+        <div class="list-item"><span><span class="badge high">HIGH</span>order-service-db · 에러율 초과</span><span>2분전</span></div>
+        <div class="list-item"><span><span class="badge">MED</span>payment-api · 큐 지연</span><span>8분전</span></div>
+        <div class="list-item"><span><span class="badge low">LOW</span>cache-server · CPU 상승</span><span>15분전</span></div>
+        <div class="box" style="text-align:center;">+ [사건 시뮬레이션 실행] 버튼 (데모용 수동 트리거)</div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <h3>② 사건 상세 (/incidents/{id})</h3>
+      <div class="body">
+        <div class="box">헤더: 리소스명 + 심각도 배지 + 상태(ANALYZING/RESOLVED)</div>
+        <div class="box">🤖 AI 판단근거 요약 (자연어 1~2문장, 말풍선 스타일)</div>
+        <div class="box">타임라인: 감지 → 심각도판정 → 조치1 → 조치2 → (해결)</div>
+        <div class="row">
+          <div class="box">지표 그래프 (선그래프, 스냅샷)</div>
+          <div class="box">감사로그 요약 (성공/실패 카운트)</div>
+        </div>
+        <div class="box" style="text-align:center;">[해결 처리] 버튼</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

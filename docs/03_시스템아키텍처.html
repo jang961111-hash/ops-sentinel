@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Ops Sentinel - 시스템 아키텍처</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: -apple-system, "Malgun Gothic", sans-serif; background:#0f1115; color:#eaeaea; margin:0; padding:32px; }
+  h1 { font-size:22px; margin-bottom:4px; }
+  p.sub { color:#9aa0a6; margin-top:0; margin-bottom:28px; }
+  .card { background:#181b21; border-radius:12px; padding:24px; margin-bottom:24px; }
+  .mermaid { background:#fff; border-radius:8px; padding:16px; }
+</style>
+</head>
+<body>
+  <h1>Ops Sentinel — 시스템 아키텍처</h1>
+  <p class="sub">SKALA 백엔드 최종 실습 · 에이전틱 인프라 감시·감사 API</p>
+
+  <div class="card">
+    <div class="mermaid">
+flowchart TB
+  subgraph SIM["지표 시뮬레이션"]
+    SCHED["Scheduler @5-10s"] --> METRIC["MetricSnapshot 생성"]
+    MANUAL["POST /metrics/simulate\n(수동 트리거)"] --> METRIC
+  end
+
+  METRIC --> RULE["RuleEngine\n(임계치 판단, 전략패턴)"]
+
+  RULE -->|정상| END1["기록만 하고 종료"]
+  RULE -->|이상 감지| INC["Incident 생성\n(낙관적락+재시도, 중복방지)"]
+
+  INC --> SEV["심각도 판정\nLOW/MED/HIGH/CRITICAL"]
+  SEV --> ACT["IncidentAgent\n조치 자동 결정·기록\n(MONITOR/RESTART/ALERT/ESCALATE)"]
+  ACT --> AI["OpenAI API\n판단근거 자연어 요약\n(3s timeout, 실패시 폴백문장)"]
+  AI --> STORE[("PostgreSQL / H2")]
+
+  RULE -.AOP Around.-> AUDIT[("AuditLog\nREQUIRES_NEW 트랜잭션\n성공/실패 100% 기록")]
+  INC -.AOP Around.-> AUDIT
+  ACT -.AOP Around.-> AUDIT
+
+  STORE --> API["REST Controller"]
+  API --> SW["Swagger UI"]
+  API --> DASH["정적 대시보드(선택)"]
+
+  STORE --> MB["MyBatis 집계쿼리"]
+  MB --> ANALYTICS["/api/analytics/*"]
+
+  API --> HEALTH["Actuator\nCustom HealthIndicator"]
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;color:#9aa0a6;font-size:14px;">계층 설명</h3>
+    <p style="color:#c7ccd1;line-height:1.7;font-size:14px;">
+      <b>판단(Decision)</b>은 규칙엔진이 결정론적으로 수행하고, <b>설명(Explanation)</b>만 LLM이 자연어로 생성한다 —
+      "판단은 검증 가능해야 한다"는 원칙을 지키기 위한 설계. AOP 감사로그는 비즈니스 로직과 완전히 분리된 관심사(cross-cutting concern)로,
+      요청 성공/실패와 무관하게 별도 트랜잭션(REQUIRES_NEW)으로 항상 기록되어 사후 검증 가능성을 보장한다.
+    </p>
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+</body>
+</html>
