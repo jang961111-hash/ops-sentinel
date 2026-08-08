@@ -8,3 +8,4 @@
 
 ### Added
 - 프로젝트 초기 세팅 (기획 문서, Git 컨벤션, 이슈/PR 템플릿)
+- Gradle 기반 Spring Boot 3.3(Java 21) 프로젝트 초기화 — resource/metric/incident/audit/analytics/common 6개 도메인 패키지, H2 인메모리 datasource, MyBatis mapper-locations 기본값 (#1)
