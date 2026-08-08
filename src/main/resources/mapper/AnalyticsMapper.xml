@@ -23,6 +23,13 @@
         리소스별/기간별 사건 건수, 심각도 분포, 평균 해결시간(MTTR 유사 지표, 분 단위)을 집계한다.
         평균 해결시간은 resolved_at이 있는(=RESOLVED로 전이된) 사건만 대상으로 하며, AVG는 NULL을
         자동으로 제외하므로 CASE로 미해결 건을 NULL 처리하는 것만으로 충분하다.
+
+        분(minute) 환산은 원래 H2 전용 함수 DATEDIFF('MINUTE', ...)를 사용했으나, 이 함수는
+        PostgreSQL에 존재하지 않아 Docker/PostgreSQL 프로필에서 "function datediff... does not
+        exist" 500 에러가 발생했다(architect 최종검증 C4 결함). EXTRACT(EPOCH FROM (timestamp -
+        timestamp))는 두 타임스탬프 차이를 초(second) 단위로 반환하는 SQL 표준 표현식으로,
+        PostgreSQL은 물론 H2 2.x(2.2.224, 이 프로젝트가 실제로 쓰는 버전으로 직접 실행해
+        확인함)도 지원한다. 초를 60으로 나눠 분 단위로 맞춘다.
     -->
     <select id="selectIncidentSummary" resultMap="incidentSummaryResultMap">
         SELECT
@@ -33,7 +40,7 @@
             SUM(CASE WHEN i.severity = 'MEDIUM' THEN 1 ELSE 0 END) AS medium_count,
             SUM(CASE WHEN i.severity = 'HIGH' THEN 1 ELSE 0 END) AS high_count,
             SUM(CASE WHEN i.severity = 'CRITICAL' THEN 1 ELSE 0 END) AS critical_count,
-            AVG(CASE WHEN i.resolved_at IS NOT NULL THEN DATEDIFF('MINUTE', i.detected_at, i.resolved_at) END) AS avg_resolution_minutes
+            AVG(CASE WHEN i.resolved_at IS NOT NULL THEN EXTRACT(EPOCH FROM (i.resolved_at - i.detected_at)) / 60.0 END) AS avg_resolution_minutes
         FROM incidents i
         JOIN resources r ON r.id = i.resource_id
         <where>

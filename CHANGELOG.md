@@ -6,6 +6,24 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-09
+
+독립 architect(Opus) 최종검증에서 REJECTED 판정을 받은 실증된 중대 결함 5건(C1~C5)을 전부
+실제 재현 → 수정 → 재검증했다. 완성도가 아니라 "판단 근거를 사람이 사후 검증할 수 있는
+감사 가능한 백엔드"라는 핵심 가치명제를 정면으로 무너뜨리는 결함들이었다. 권장 사항 2건
+(M1, M2)도 함께 반영했다.
+
+### Fixed
+- **(C1) 감사로그가 존재하지 않는 Incident를 가리키던 문제** — `AuditLogAspect.extractTargetId`가 대상 메서드의 반환값에서 id를 못 찾으면 메서드 인자 중 아무 `getId()`나 가져다 썼다. `IncidentDetectionService.detectAndCreate()`가 정상 지표(약 90% 확률)에서 `Optional.empty()`를 반환해도 이 폴백이 발동해, 인자로 넘어온 `MetricSnapshot`의 id가 `targetType="Incident"` 감사로그의 targetId로 잘못 기록됐다(실측: 서버 갓 기동 후 정상 지표로 시뮬레이션 1회 호출 시 존재하지 않는 Incident id를 가리키는 감사로그 발생). 반환 타입이 `Optional`이면 그 값을 그대로 신뢰해 `Optional.empty()`를 "타겟 없음"으로 존중하고, 이 경우 인자 폴백을 하지 않도록 수정. (`AuditLogAspect.java`)
+- **(C2) 부하 상황에서 실패 감사로그가 통째로 소실되던 문제** — `AuditLogRecorder.recordFailure()`(REQUIRES_NEW, 별도 DB 커넥션 필요)가 커넥션풀 고갈 등으로 트랜잭션을 여는 단계에서부터 자체 실패하면, 그 예외가 원래 비즈니스 예외를 대체해버려 `catch` 블록의 `throw ex`(원래 예외 재던지기)에 도달하지 못했다. 실측: HikariCP 풀을 3으로 인위적으로 좁힌 뒤 40개 동시요청을 보내자 클라이언트 500 실패가 40건 발생했는데, 이 중 FAIL 감사로그는 단 4건만 남았다(약 90% 유실). `AuditLogAspect`에서 `recordSuccess`/`recordFailure` 호출 자체를 try-catch로 한 번 더 감싸, 감사기록 자체의 실패는 로그로만 남기고 원래 예외/정상 흐름을 절대 덮어쓰지 않도록 수정 — 동일 조건 재현 시 37건의 새 실패 중 37건 모두 FAIL 감사로그로 남는 것을 확인. (`AuditLogAspect.java`)
+- **(C3) 클라이언트 오류 대부분이 500으로 응답되던 문제** — `GlobalExceptionHandler`가 `ResponseEntityExceptionHandler`를 상속하지 않아, Spring MVC가 컨트롤러 진입 전에 자체적으로 던지는 프레임워크 예외(`HttpMessageNotReadableException`—깨진 JSON/잘못된 enum, `HttpRequestMethodNotSupportedException`—405, `NoResourceFoundException`—404)가 최상위 `Exception` catch-all로 떨어져 전부 500이 됐다. 실측(수정 전 → 후): 정의되지 않은 enum 값으로 리소스 등록 500→400, 깨진 JSON 본문 500→400, `PATCH /api/incidents/10`(미지원 메서드) 500→405, `GET /totally/unknown/path` 500→404. `ResponseEntityExceptionHandler`를 상속하고 `handleExceptionInternal`을 오버라이드해 이 프레임워크 예외들도 기존과 동일한 `{timestamp,status,error,message,path}` 공통 포맷으로 응답하도록 수정. (`GlobalExceptionHandler.java`)
+- **(C4) Docker/PostgreSQL에서 MyBatis 집계가 깨지던 문제** — `AnalyticsMapper.xml`의 `DATEDIFF('MINUTE', detected_at, resolved_at)`가 H2 전용 함수라 PostgreSQL에서 `function datediff(...) does not exist` 500 에러가 발생했다(Docker Compose로 실제 PostgreSQL을 띄워 재현 확인). `EXTRACT(EPOCH FROM (resolved_at - detected_at)) / 60.0`(초 단위 차이를 분으로 환산하는 SQL 표준 표현식)으로 교체 — PostgreSQL은 물론, 이 프로젝트가 실제로 쓰는 H2 2.2.224에서도 직접 JDBC로 실행해 지원 여부를 확인했다(H2 2.x가 `EXTRACT(EPOCH FROM ...)`를 정상 지원함을 확인). 부가로 정수 단위로 뭉개지던 MTTR 값이 소수점까지 정확하게 나오게 됐다(예: 58초 해결 건이 이전엔 반올림된 정수 분이었지만 이제 `0.9667`분처럼 정확히 표시). (`AnalyticsMapper.xml`)
+- **(C5) README가 완성된 기능을 미착수로 기술하던 문제** — PR #28(US-011) 이후 갱신되지 않아 OpenAI 연동(#30)·JWT(#31)·테스트보강(#32)·Docker Compose(#33)·대시보드(#34)가 전부 완료됐음에도 "(예정)", "P1 미착수", "Sprint 0~3(P0) 완료"라고 stale하게 기술돼 있었다. 실제 코드 상태(P0+P1+P2 전부 완료)에 맞게 전면 갱신 — OpenAI 연동이 실제로 라이브 동작 중임을 명시, API 목록 표에 JWT 인증이 필요한 두 엔드포인트(`GET /api/audit-logs`, `PATCH /incidents/{id}/resolve`)를 🔒로 표시, 진행상태 섹션을 "P0~P2 전체 완료(v1.0.1)"로 갱신, "한계 및 정직하게 밝힐 부분"에 이번 검증에서 나온 실제 남은 한계(JWT secret 미고정 시 재기동마다 토큰 무효화, `/h2-console` 무인증 노출, 관리자 계정 단일 구조)를 정직하게 추가. (`README.md`)
+
+### Changed
+- **(M1, 권장)** `IncidentQueryService.resolve`가 멱등하게 동작하도록 수정 — 이미 `RESOLVED`인 사건을 다시 resolve해도 `resolvedAt`(최초 해결 시각)을 재설정하지 않는다. 재설정을 허용하면 재시도/중복 클릭 등으로 `AnalyticsMapper`의 평균 해결시간(MTTR) 집계가 실제보다 늦은 시각으로 왜곡될 수 있었다. 사람이 관리자 엔드포인트로 직접 트리거하는 조치이므로 `@Auditable(actorType = "OPERATOR", ...)`을 추가해 감사로그에도 남도록 함. 회귀 방지용 `IncidentQueryServiceTest` 신규 추가. (`IncidentQueryService.java`)
+- **(M2, 권장)** `JwtAuthenticationFilter`가 보호 대상 라우트를 매칭할 때 `HTTP GET`만 정확히 비교해, `HEAD` 요청이 같은 컨트롤러 메서드를 실제로 실행하면서도 인증 없이 통과되던 문제(`GET /api/audit-logs`는 401인데 `HEAD /api/audit-logs`는 인증 우회로 200) 수정 — `HEAD`는 보호 대상 판정 시 `GET`과 동일하게 취급하도록 함. (`JwtAuthenticationFilter.java`)
+
 ## [1.0.0] - 2026-08-09
 
 P1(시간 되면) + P2(시간 남으면만) 전체 완료 — 마스터프롬프트 7장 빌드순서(P0~P2) 전 항목 완성, 전체 17개 이슈 모두 CLOSED(`v7-polish`, `v1.0.0`).
