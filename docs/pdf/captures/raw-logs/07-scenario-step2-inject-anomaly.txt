@@ -1,0 +1,19 @@
+$ curl -i -X POST http://localhost:8080/api/metrics/simulate \
+    -H "Content-Type: application/json" \
+    -d '{"resourceId":10,"errorRate":12.5}'
+
+HTTP/1.1 201 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:43:08 GMT
+
+
+{
+  "id": 314,
+  "resourceId": 10,
+  "cpuUsage": 14.93,
+  "memUsage": 6.55,
+  "errorRate": 12.5,
+  "queueDepth": 5,
+  "capturedAt": "2026-08-09T03:43:07.720188"
+}

@@ -1,0 +1,15 @@
+$ ./gradlew clean test --console=plain
+
+> Task :clean
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 4s
+5 actionable tasks: 5 executed
+
+테스트 리포트: build/reports/tests/test/index.html -> 45 tests, 0 failures, 0 ignored, 0.498s

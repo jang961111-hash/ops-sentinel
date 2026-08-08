@@ -1,0 +1,19 @@
+$ gh issue list --state closed --limit 20
+
+17	CLOSED	[Feat] P2-17. 정적 대시보드 페이지		2026-08-08T16:40:46Z
+16	CLOSED	[Feat] P2-16. Docker Compose (app+postgres)		2026-08-08T16:34:46Z
+15	CLOSED	[Feat] P1-15. 테스트 코드 (동시성 재현 + 단위테스트)		2026-08-08T16:27:36Z
+14	CLOSED	[Feat] P1-14. JWT 최소 구현		2026-08-08T16:19:30Z
+13	CLOSED	[Feat] P1-13. OpenAI API 연동 (판단근거 요약)		2026-08-08T16:10:18Z
+12	CLOSED	[Feat] P0-12. 시드 데이터		2026-08-08T15:58:28Z
+11	CLOSED	[Feat] P0-11. README 작성		2026-08-08T15:41:11Z
+10	CLOSED	[Feat] P0-10. Actuator 커스텀 HealthIndicator		2026-08-08T15:36:14Z
+9	CLOSED	[Feat] P0-9. MyBatis 집계 쿼리 (analytics 엔드포인트)		2026-08-08T15:29:05Z
+8	CLOSED	[Feat] P0-8. Controller 전체 + Swagger 문서화		2026-08-08T15:20:38Z
+7	CLOSED	[Feat] P0-7. 전역 예외처리 (@RestControllerAdvice)		2026-08-08T15:12:10Z
+6	CLOSED	[Feat] P0-6. AOP 감사로그 (REQUIRES_NEW, 성공/실패 모두 기록)		2026-08-08T15:02:44Z
+5	CLOSED	[Feat] P0-5. IncidentAction 자동 기록 로직		2026-08-08T14:50:59Z
+4	CLOSED	[Feat] P0-4. 이상탐지 규칙엔진 + Incident 생성 + 동시성 제어(중복사건 방지)		2026-08-08T14:42:13Z
+3	CLOSED	[Feat] P0-3. 지표 시뮬레이터 (스케줄러 + 수동 트리거 API)		2026-08-08T14:28:18Z
+2	CLOSED	[Feat] P0-2. 엔티티 + JPA Repository (H2)		2026-08-08T14:19:00Z
+1	CLOSED	[Feat] P0-1. 프로젝트 초기화 (Gradle, 패키지 구조: resource/metric/incident/audit/analytics/common)		2026-08-08T14:12:54Z

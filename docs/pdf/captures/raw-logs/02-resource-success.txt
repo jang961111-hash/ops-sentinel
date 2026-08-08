@@ -1,0 +1,16 @@
+$ curl -i -X POST http://localhost:8080/api/resources \
+    -H "Content-Type: application/json" \
+    -d '{"name":"payment-api-gateway","type":"API"}'
+
+HTTP/1.1 201 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:42:07 GMT
+
+
+{
+  "id": 9,
+  "name": "payment-api-gateway",
+  "type": "API",
+  "createdAt": "2026-08-09T03:42:07.075537"
+}

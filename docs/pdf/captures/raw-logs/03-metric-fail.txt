@@ -1,0 +1,17 @@
+$ curl -i -X POST http://localhost:8080/api/metrics/simulate \
+    -H "Content-Type: application/json" \
+    -d '{"resourceId":999999,"cpuUsage":50.0}'
+
+HTTP/1.1 404 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:42:33 GMT
+
+
+{
+  "timestamp": "2026-08-09T03:42:33.013092",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Resource not found: 999999",
+  "path": "/api/metrics/simulate"
+}

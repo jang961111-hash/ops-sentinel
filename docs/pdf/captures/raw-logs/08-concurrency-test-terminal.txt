@@ -1,0 +1,14 @@
+$ RESOURCE_ID=11
+$ N=10  (동일 resourceId로 POST /api/metrics/simulate 동시 전송 건수)
+
+요청 전송 중...
+전 건 응답 완료.
+
+HTTP 201(요청 처리 성공) 건수: 10 / 10
+HTTP 실패(2xx 외) 건수: 0 / 10
+
+$ curl -s "http://localhost:8080/api/incidents?resourceId=11" | jq '.totalElements'
+전체 Incident 건수(resourceId=11): 1
+
+검증: 동시요청 10 건 -> HTTP 성공 10 건, 그 중 실제 생성된 OPEN(DETECTED/ANALYZING) Incident는 1 건
+결과: PASS - 동시요청 10 건에도 불구하고 Incident는 정확히 1건만 생성됨(중복 생성 방지 확인)

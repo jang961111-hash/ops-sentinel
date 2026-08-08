@@ -1,0 +1,16 @@
+$ curl -i http://localhost:8080/api/audit-logs
+  (Authorization 헤더 없이 호출)
+
+HTTP/1.1 401 
+Content-Type: application/json;charset=UTF-8
+Content-Length: 149
+Date: Sat, 08 Aug 2026 18:43:56 GMT
+
+
+{
+  "timestamp": "2026-08-09T03:43:56.467576",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "인증 토큰이 필요합니다.",
+  "path": "/api/audit-logs"
+}

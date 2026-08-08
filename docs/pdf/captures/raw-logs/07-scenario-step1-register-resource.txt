@@ -1,0 +1,16 @@
+$ curl -i -X POST http://localhost:8080/api/resources \
+    -H "Content-Type: application/json" \
+    -d '{"name":"checkout-order-db","type":"DATABASE"}'
+
+HTTP/1.1 201 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:43:01 GMT
+
+
+{
+  "id": 10,
+  "name": "checkout-order-db",
+  "type": "DATABASE",
+  "createdAt": "2026-08-09T03:43:01.981"
+}
