@@ -49,7 +49,10 @@ class IncidentActionServiceTest {
                 .build());
 
         // cpuUsage=94 -> bandUsageSeverity 93~96 구간 -> MEDIUM
-        metricService.simulate(new SimulateMetricRequest(resource.getId(), 94.0, null, null, null));
+        // 나머지 필드도 명시적으로 안전값을 채운다 — null로 두면 MetricService의 랜덤 채움 로직이
+        // 10% 확률로 이상치를 섞어 의도치 않게 더 심각한 규칙(예: ERROR_RATE_EXCEEDED)이 같이
+        // 트리거될 수 있어(IncidentRuleEngine은 더 심각한 규칙을 채택) 테스트가 간헐적으로 실패했다.
+        metricService.simulate(new SimulateMetricRequest(resource.getId(), 94.0, 0.0, 0.0, 0));
 
         Incident incident = findOpenIncident(resource.getId());
 
@@ -64,8 +67,8 @@ class IncidentActionServiceTest {
                 .type(ResourceType.SERVER)
                 .build());
 
-        // errorRate=25 -> CRITICAL
-        metricService.simulate(new SimulateMetricRequest(resource.getId(), null, null, 25.0, null));
+        // errorRate=25 -> CRITICAL (나머지 필드는 랜덤 이상치 혼입 방지를 위해 안전값 명시)
+        metricService.simulate(new SimulateMetricRequest(resource.getId(), 0.0, 0.0, 25.0, 0));
 
         Incident incident = findOpenIncident(resource.getId());
 
@@ -81,7 +84,8 @@ class IncidentActionServiceTest {
                 .build());
 
         // cpuUsage=97 -> bandUsageSeverity 96~99 구간 -> HIGH, CPU_EXCEEDED는 재시작 유력 규칙
-        metricService.simulate(new SimulateMetricRequest(resource.getId(), 97.0, null, null, null));
+        // (나머지 필드는 랜덤 이상치 혼입 방지를 위해 안전값 명시)
+        metricService.simulate(new SimulateMetricRequest(resource.getId(), 97.0, 0.0, 0.0, 0));
 
         Incident incident = findOpenIncident(resource.getId());
 
@@ -96,7 +100,8 @@ class IncidentActionServiceTest {
                 .build());
 
         // errorRate=15 -> HIGH, ERROR_RATE_EXCEEDED는 재시작 비적합 규칙
-        metricService.simulate(new SimulateMetricRequest(resource.getId(), null, null, 15.0, null));
+        // (나머지 필드는 랜덤 이상치 혼입 방지를 위해 안전값 명시)
+        metricService.simulate(new SimulateMetricRequest(resource.getId(), 0.0, 0.0, 15.0, 0));
 
         Incident incident = findOpenIncident(resource.getId());
 
