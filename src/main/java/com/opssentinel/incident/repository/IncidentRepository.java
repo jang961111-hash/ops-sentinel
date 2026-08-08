@@ -3,6 +3,7 @@ package com.opssentinel.incident.repository;
 import com.opssentinel.incident.entity.Incident;
 import com.opssentinel.incident.entity.IncidentSeverity;
 import com.opssentinel.incident.entity.IncidentStatus;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -37,4 +38,12 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
      */
     @Query("SELECT i FROM Incident i LEFT JOIN FETCH i.actions WHERE i.id = :id")
     Optional<Incident> findByIdWithActions(@Param("id") Long id);
+
+    /**
+     * US-010 Actuator 헬스체크(IncidentEngineHealthIndicator)용 — 주어진 시각 이후 감지되고
+     * 아직 특정 상태(RESOLVED)가 아닌 특정 심각도(CRITICAL) 사건 건수를 센다. 존재 여부
+     * 판정(DOWN/UP)과 상세정보(건수)를 한 번의 쿼리로 모두 구할 수 있어 count 하나로 충분하다.
+     */
+    long countBySeverityAndStatusNotAndDetectedAtAfter(
+            IncidentSeverity severity, IncidentStatus status, LocalDateTime detectedAtAfter);
 }

@@ -45,6 +45,11 @@ management:
     web:
       exposure:
         include: health,info
+  endpoint:
+    health:
+      # 기본값(never)은 /actuator/health/{component} 하위 경로(예: incidentEngine)의
+      # 상세정보를 숨겨 US-010 커스텀 인디케이터가 UP/DOWN 외 상세를 보여주지 못한다.
+      show-details: always
 
 springdoc:
   swagger-ui:
