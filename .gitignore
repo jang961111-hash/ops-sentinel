@@ -46,3 +46,6 @@ docs/pdf/*.zip
 ### OMC 런타임 아티팩트 (세션 상태, 커밋 대상 아님) ###
 .omc/*
 !.omc/skills/
+
+### node_modules (PDF 렌더 스크립트용 playwright 등) ###
+node_modules/
