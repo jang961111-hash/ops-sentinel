@@ -1,0 +1,26 @@
+$ curl -s http://localhost:8080/api/incidents/10
+
+{
+  "id": 10,
+  "resourceId": 10,
+  "resourceName": "checkout-order-db",
+  "severity": "HIGH",
+  "status": "ANALYZING",
+  "ruleTriggered": "ERROR_RATE_EXCEEDED",
+  "aiSummary": "리소스ID 10에서 오류율이 기준치를 초과하여 심각도가 높다고 판단되어 운영자에게 경고하고 백업을 수행하기로 결정했습니다.",
+  "detectedAt": "2026-08-09T03:43:07.722068",
+  "actions": [
+    {
+      "actionType": "ALERT",
+      "executedBy": "SYSTEM_AGENT",
+      "result": "OK",
+      "executedAt": "2026-08-09T03:43:07.722388"
+    },
+    {
+      "actionType": "BACKUP",
+      "executedBy": "SYSTEM_AGENT",
+      "result": "OK",
+      "executedAt": "2026-08-09T03:43:07.722511"
+    }
+  ]
+}

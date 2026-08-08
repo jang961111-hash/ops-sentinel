@@ -1,0 +1,18 @@
+$ curl -i -X POST http://localhost:8080/api/resources \
+    -H "Content-Type: application/json" \
+    -d '{"name":"","type":"API"}'
+
+HTTP/1.1 400 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:42:14 GMT
+Connection: close
+
+
+{
+  "timestamp": "2026-08-09T03:42:14.800788",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "name: 공백일 수 없습니다",
+  "path": "/api/resources"
+}

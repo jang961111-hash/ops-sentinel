@@ -1,0 +1,110 @@
+$ curl -i http://localhost:8080/api/analytics/incident-summary
+
+HTTP/1.1 200 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:43:43 GMT
+
+
+[
+  {
+    "resourceId": 1,
+    "resourceName": "order-service-web",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 1,
+    "highCount": 0,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 2,
+    "resourceName": "order-service-db",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 3,
+    "resourceName": "payment-service-web",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 4,
+    "resourceName": "payment-service-db",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 5,
+    "resourceName": "payment-queue",
+    "incidentCount": 1,
+    "lowCount": 1,
+    "mediumCount": 0,
+    "highCount": 0,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 6,
+    "resourceName": "notification-queue",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 7,
+    "resourceName": "user-api",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 8,
+    "resourceName": "auth-api",
+    "incidentCount": 1,
+    "lowCount": 1,
+    "mediumCount": 0,
+    "highCount": 0,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 9,
+    "resourceName": "payment-api-gateway",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  },
+  {
+    "resourceId": 10,
+    "resourceName": "checkout-order-db",
+    "incidentCount": 1,
+    "lowCount": 0,
+    "mediumCount": 0,
+    "highCount": 1,
+    "criticalCount": 0,
+    "avgResolutionMinutes": null
+  }
+]

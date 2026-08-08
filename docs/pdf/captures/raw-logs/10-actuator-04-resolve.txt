@@ -1,0 +1,33 @@
+$ curl -i -X PATCH http://localhost:8080/api/incidents/12/resolve \
+    -H "Authorization: Bearer $TOKEN"
+
+HTTP/1.1 200 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:45:09 GMT
+
+
+{
+  "id": 12,
+  "resourceId": 12,
+  "resourceName": "healthcheck-demo-api",
+  "severity": "CRITICAL",
+  "status": "RESOLVED",
+  "ruleTriggered": "ERROR_RATE_EXCEEDED",
+  "aiSummary": "리소스ID 12의 오류율이 기준치를 초과하여 심각도가 CRITICAL로 판단되어, 즉각적인 대응이 필요하다고 판단하여 에스컬레이션 및 경고 조치를 결정했습니다.",
+  "detectedAt": "2026-08-09T03:44:55.649832",
+  "actions": [
+    {
+      "actionType": "ESCALATE",
+      "executedBy": "SYSTEM_AGENT",
+      "result": "OK",
+      "executedAt": "2026-08-09T03:44:55.650029"
+    },
+    {
+      "actionType": "ALERT",
+      "executedBy": "SYSTEM_AGENT",
+      "result": "OK",
+      "executedAt": "2026-08-09T03:44:55.650101"
+    }
+  ]
+}

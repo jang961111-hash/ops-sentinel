@@ -1,0 +1,16 @@
+$ curl -i -X PATCH http://localhost:8080/api/incidents/10/resolve
+  (Authorization 헤더 없이 호출 — 관리자 전용 엔드포인트 보호 검증)
+
+HTTP/1.1 401 
+Content-Type: application/json;charset=UTF-8
+Content-Length: 159
+Date: Sat, 08 Aug 2026 18:43:31 GMT
+
+
+{
+  "timestamp": "2026-08-09T03:43:31.886428",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "인증 토큰이 필요합니다.",
+  "path": "/api/incidents/10/resolve"
+}

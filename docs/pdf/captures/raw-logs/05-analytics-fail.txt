@@ -1,0 +1,16 @@
+$ curl -i "http://localhost:8080/api/analytics/incident-summary?from=not-a-date"
+
+HTTP/1.1 400 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:43:43 GMT
+Connection: close
+
+
+{
+  "timestamp": "2026-08-09T03:43:43.09531",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "잘못된 요청 파라미터입니다: from=not-a-date",
+  "path": "/api/analytics/incident-summary"
+}

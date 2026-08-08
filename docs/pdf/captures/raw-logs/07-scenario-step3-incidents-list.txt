@@ -1,0 +1,41 @@
+$ curl -s http://localhost:8080/api/incidents?resourceId=10
+
+{
+  "content": [
+    {
+      "id": 10,
+      "resourceId": 10,
+      "resourceName": "checkout-order-db",
+      "severity": "HIGH",
+      "status": "ANALYZING",
+      "ruleTriggered": "ERROR_RATE_EXCEEDED",
+      "detectedAt": "2026-08-09T03:43:07.722068",
+      "resolvedAt": null
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 20,
+    "sort": {
+      "sorted": false,
+      "unsorted": true,
+      "empty": true
+    },
+    "offset": 0,
+    "paged": true,
+    "unpaged": false
+  },
+  "totalPages": 1,
+  "last": true,
+  "totalElements": 1,
+  "first": true,
+  "numberOfElements": 1,
+  "size": 20,
+  "number": 0,
+  "sort": {
+    "sorted": false,
+    "unsorted": true,
+    "empty": true
+  },
+  "empty": false
+}

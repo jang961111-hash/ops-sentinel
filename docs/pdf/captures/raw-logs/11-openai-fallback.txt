@@ -1,0 +1,37 @@
+$ OPENAI_TIMEOUT_MS=1 ./gradlew bootRun   # 서버 재기동: OpenAI 응답 타임아웃을 1ms로 강제
+
+$ curl -s -X POST http://localhost:8080/api/metrics/simulate \
+    -H "Content-Type: application/json" \
+    -d '{"resourceId":9,"cpuUsage":95.0}'
+
+$ curl -s http://localhost:8080/api/incidents/3
+
+{
+  "id": 3,
+  "resourceId": 9,
+  "resourceName": "openai-fallback-demo",
+  "severity": "HIGH",
+  "status": "ANALYZING",
+  "ruleTriggered": "QUEUE_DEPTH_EXCEEDED",
+  "aiSummary": "HIGH 등급의 QUEUE_DEPTH_EXCEEDED 이상이 감지되어 자동 조치가 실행되었습니다.",
+  "detectedAt": "2026-08-09T03:45:45.817902",
+  "actions": [
+    {
+      "actionType": "ALERT",
+      "executedBy": "SYSTEM_AGENT",
+      "result": "OK",
+      "executedAt": "2026-08-09T03:45:45.81828"
+    },
+    {
+      "actionType": "RESTART",
+      "executedBy": "SYSTEM_AGENT",
+      "result": "OK",
+      "executedAt": "2026-08-09T03:45:45.818503"
+    }
+  ]
+}
+
+# aiSummary 값이 OpenAI가 생성한 자연어 문장이 아니라 AiSummaryService.fallback()의
+# 고정 템플릿("{severity} 등급의 {rule} 이상이 감지되어 자동 조치가 실행되었습니다.")
+# 그대로인 것을 확인 - 1ms 타임아웃으로 실제 OpenAI 호출이 실패하고 폴백 경로로
+# 전환된 것이 실측으로 검증됨.

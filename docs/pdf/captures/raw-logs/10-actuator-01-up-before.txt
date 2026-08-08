@@ -1,0 +1,33 @@
+$ curl -s http://localhost:8080/actuator/health | jq .
+
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": {
+        "database": "H2",
+        "validationQuery": "isValid()"
+      }
+    },
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "total": 994610155520,
+        "free": 743694827520,
+        "threshold": 10485760,
+        "path": "/Users/jangbyeongheon/workspace/ops-sentinel/.",
+        "exists": true
+      }
+    },
+    "incidentEngine": {
+      "status": "UP",
+      "details": {
+        "unresolvedCriticalCount": 0
+      }
+    },
+    "ping": {
+      "status": "UP"
+    }
+  }
+}

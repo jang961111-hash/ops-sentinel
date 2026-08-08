@@ -1,0 +1,93 @@
+$ curl -i http://localhost:8080/api/audit-logs?size=5 \
+    -H "Authorization: Bearer $TOKEN"
+
+HTTP/1.1 200 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Sat, 08 Aug 2026 18:43:56 GMT
+
+
+{
+  "content": [
+    {
+      "id": 1,
+      "actorType": "SYSTEM_AGENT",
+      "action": "INCIDENT_ACTION_DECIDE",
+      "targetType": "Incident",
+      "targetId": 1,
+      "requestSummary": "[com.opssentinel.incident.entity.Incident@7a0e3a53]",
+      "resultStatus": "SUCCESS",
+      "errorMessage": null,
+      "createdAt": "2026-08-09T03:38:58.73745"
+    },
+    {
+      "id": 2,
+      "actorType": "SYSTEM_AGENT",
+      "action": "INCIDENT_DETECT",
+      "targetType": "Incident",
+      "targetId": 1,
+      "requestSummary": "[com.opssentinel.metric.entity.MetricSnapshot@5a567bb]",
+      "resultStatus": "SUCCESS",
+      "errorMessage": null,
+      "createdAt": "2026-08-09T03:38:58.745635"
+    },
+    {
+      "id": 3,
+      "actorType": "SYSTEM_AGENT",
+      "action": "INCIDENT_DETECT",
+      "targetType": "Incident",
+      "targetId": null,
+      "requestSummary": "[com.opssentinel.metric.entity.MetricSnapshot@34ea59e6]",
+      "resultStatus": "SUCCESS",
+      "errorMessage": null,
+      "createdAt": "2026-08-09T03:38:58.747131"
+    },
+    {
+      "id": 4,
+      "actorType": "SYSTEM_AGENT",
+      "action": "INCIDENT_DETECT",
+      "targetType": "Incident",
+      "targetId": null,
+      "requestSummary": "[com.opssentinel.metric.entity.MetricSnapshot@4f14352d]",
+      "resultStatus": "SUCCESS",
+      "errorMessage": null,
+      "createdAt": "2026-08-09T03:38:58.748201"
+    },
+    {
+      "id": 5,
+      "actorType": "SYSTEM_AGENT",
+      "action": "INCIDENT_DETECT",
+      "targetType": "Incident",
+      "targetId": null,
+      "requestSummary": "[com.opssentinel.metric.entity.MetricSnapshot@6429f15e]",
+      "resultStatus": "SUCCESS",
+      "errorMessage": null,
+      "createdAt": "2026-08-09T03:38:58.749234"
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 5,
+    "sort": {
+      "sorted": false,
+      "unsorted": true,
+      "empty": true
+    },
+    "offset": 0,
+    "paged": true,
+    "unpaged": false
+  },
+  "totalPages": 77,
+  "last": false,
+  "totalElements": 381,
+  "first": true,
+  "numberOfElements": 5,
+  "size": 5,
+  "number": 0,
+  "sort": {
+    "sorted": false,
+    "unsorted": true,
+    "empty": true
+  },
+  "empty": false
+}

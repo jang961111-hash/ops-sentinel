@@ -1,0 +1,44 @@
+$ curl -s "http://localhost:8080/api/audit-logs?targetType=MetricSnapshot&resultStatus=FAIL" \
+    -H "Authorization: Bearer $TOKEN"
+
+[
+  {
+    "id": 263,
+    "actorType": "SYSTEM_AGENT",
+    "action": "METRIC_SIMULATE",
+    "targetType": "MetricSnapshot",
+    "targetId": null,
+    "requestSummary": "[SimulateMetricRequest[resourceId=999999, cpuUsage=50.0, memUsage=null, errorRate=null, queueDepth=null]]",
+    "resultStatus": "FAIL",
+    "errorMessage": "404 NOT_FOUND \"Resource not found: 999999\"",
+    "createdAt": "2026-08-09T03:42:33.012387"
+  }
+]
+
+$ curl -s "http://localhost:8080/api/audit-logs?targetType=MetricSnapshot&resultStatus=SUCCESS&size=2" \
+    -H "Authorization: Bearer $TOKEN"
+
+[
+  {
+    "id": 253,
+    "actorType": "SYSTEM_AGENT",
+    "action": "METRIC_SIMULATE",
+    "targetType": "MetricSnapshot",
+    "targetId": 259,
+    "requestSummary": "[SimulateMetricRequest[resourceId=9, cpuUsage=95.0, memUsage=null, errorRate=null, queueDepth=null]]",
+    "resultStatus": "SUCCESS",
+    "errorMessage": null,
+    "createdAt": "2026-08-09T03:42:21.501193"
+  },
+  {
+    "id": 320,
+    "actorType": "SYSTEM_AGENT",
+    "action": "METRIC_SIMULATE",
+    "targetType": "MetricSnapshot",
+    "targetId": 314,
+    "requestSummary": "[SimulateMetricRequest[resourceId=10, cpuUsage=null, memUsage=null, errorRate=12.5, queueDepth=null]]",
+    "resultStatus": "SUCCESS",
+    "errorMessage": null,
+    "createdAt": "2026-08-09T03:43:08.741702"
+  }
+]
