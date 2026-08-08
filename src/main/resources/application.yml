@@ -56,3 +56,13 @@ management:
 # `/swagger-ui/index.html` -> `/swagger-ui/swagger-ui/index.html`로 이중 리다이렉트되는
 # 버그가 있었다(US-012 self-QA에서 발견). PRD 8장이 요구하는 URL을 리다이렉트 없이
 # 그대로 노출하려면 이 설정을 두지 않는 게 맞다.
+
+# US-013: Incident 판단근거 자연어 요약(aiSummary) 생성용 OpenAI 연동 설정.
+# api-key가 비어있으면 AiSummaryService가 네트워크 호출을 시도하지 않고 즉시 폴백 문장을
+# 쓴다 — 연동 자체가 optional이라 이 프로퍼티가 없어도 앱은 정상 동작한다. timeout-ms는
+# Spring Boot 환경변수 완화 바인딩(relaxed binding) 규칙에 따라 OPENAI_TIMEOUT_MS
+# 환경변수로도 재정의할 수 있다(예: 타임아웃 동작 검증 시 일시적으로 짧게 설정).
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  model: gpt-4o-mini
+  timeout-ms: 3000

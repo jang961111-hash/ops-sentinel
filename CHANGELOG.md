@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### Added
+- `AiSummaryService` 추가 — OpenAI Chat Completions API(`gpt-4o-mini`, Spring 6 `RestClient` + `SimpleClientHttpRequestFactory` 타임아웃 3초)로 Incident 판단근거 자연어 요약(aiSummary)을 생성해 `IncidentActionService.decideAndRecord` 조치 결정 직후 채워 저장. `OPENAI_API_KEY` 미설정 시 네트워크 호출 자체를 건너뛰고, 호출 실패/타임아웃 시에도 예외를 흡수해 기본 템플릿 문장으로 대체하므로 연동 장애가 Incident 생성 흐름을 막지 않음(US-013) (#13)
+
+### Changed
+- `./gradlew test`가 셸의 `OPENAI_API_KEY`를 테스트 JVM에 전달하지 않도록 `build.gradle`에 고정 — 기존 통합테스트가 매 빌드마다 실제 OpenAI를 호출해 과금·플레이키(flaky)해지는 것을 방지하고 폴백 경로를 항상 검증하게 함 (#13)
+
 ## [0.1.0] - 2026-08-09
 
 P0(MVP) 전체 완료 — 언제든 제출 가능한 최소 완결 버전(`v-submittable`).
