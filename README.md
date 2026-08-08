@@ -147,6 +147,10 @@ docker compose down
 
 `http://localhost:8080/swagger-ui/index.html` — 전체 API를 문서화된 형태로 확인하고 직접 호출해볼 수 있다.
 
+### 대시보드
+
+`http://localhost:8080/dashboard.html` — Swagger 대신 최근 사건 목록과 리소스 위험도 랭킹을 바로 볼 수 있는 정적 페이지(vanilla JS, 인증 불필요).
+
 ### 헬스체크
 
 `http://localhost:8080/actuator/health` — 기본 헬스체크. 하위 컴포넌트 상세는 `show-details: always` 설정으로 함께 노출된다(예: `/actuator/health` 응답 안의 `incidentEngine` 컴포넌트).

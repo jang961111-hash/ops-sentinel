@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ops Sentinel Dashboard</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #e2e5ea;
+    --text: #1f2430;
+    --text-muted: #6b7280;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 { font-size: 1.4rem; margin: 0; }
+  .sub { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+  .controls { display: flex; align-items: center; gap: 10px; }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  button:hover { opacity: 0.9; }
+  button.secondary {
+    background: #fff;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  label { font-size: 0.8rem; color: var(--text-muted); }
+  #status-line { font-size: 0.78rem; color: var(--text-muted); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 1rem;
+    margin: 0 0 12px 0;
+  }
+  #rank-list {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .rank-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    min-width: 140px;
+  }
+  .rank-item .name { font-weight: 600; }
+  .rank-item .count { color: var(--accent); font-weight: 700; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #f0f4ff; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .badge-LOW { background: #6b7280; }
+  .badge-MEDIUM { background: #d4a72c; }
+  .badge-HIGH { background: #e8730d; }
+  .badge-CRITICAL { background: #dc2626; }
+  .status-pill {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  #detail-panel { display: none; }
+  #detail-panel .field { margin-bottom: 8px; font-size: 0.85rem; }
+  #detail-panel .field-label { color: var(--text-muted); margin-right: 6px; }
+  #detail-panel table { margin-top: 8px; }
+  #empty-msg, #error-msg { color: var(--text-muted); font-size: 0.85rem; padding: 10px 0; }
+  #error-msg { color: #dc2626; }
+  .pagination { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Ops Sentinel Dashboard</h1>
+    <div class="sub">최근 사건(Incident) 목록 — Swagger 대신 볼 수 있는 정적 대시보드</div>
+  </div>
+  <div class="controls">
+    <label>status
+      <select id="filter-status">
+        <option value="">전체</option>
+        <option value="DETECTED">DETECTED</option>
+        <option value="ANALYZING">ANALYZING</option>
+        <option value="RESOLVED">RESOLVED</option>
+      </select>
+    </label>
+    <label>severity
+      <select id="filter-severity">
+        <option value="">전체</option>
+        <option value="LOW">LOW</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="HIGH">HIGH</option>
+        <option value="CRITICAL">CRITICAL</option>
+      </select>
+    </label>
+    <button id="refresh-btn" class="secondary" type="button">새로고침</button>
+    <label><input type="checkbox" id="auto-refresh" checked> 자동새로고침(10초)</label>
+  </div>
+</header>
+
+<div id="status-line"></div>
+
+<section class="panel">
+  <h2>리소스 위험도 랭킹</h2>
+  <div id="rank-list"><span class="sub">불러오는 중...</span></div>
+</section>
+
+<section class="panel">
+  <h2>최근 사건 목록</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Severity</th>
+        <th>Status</th>
+        <th>Rule</th>
+        <th>Resource</th>
+        <th>Detected At</th>
+      </tr>
+    </thead>
+    <tbody id="incident-tbody"></tbody>
+  </table>
+  <div id="empty-msg" style="display:none;">표시할 사건이 없습니다.</div>
+  <div id="error-msg" style="display:none;"></div>
+  <div class="pagination">
+    <button id="prev-page" class="secondary" type="button">이전</button>
+    <span id="page-info" class="sub"></span>
+    <button id="next-page" class="secondary" type="button">다음</button>
+  </div>
+</section>
+
+<section class="panel" id="detail-panel">
+  <h2>사건 상세</h2>
+  <div id="detail-body"></div>
+</section>
+
+<script>
+(function () {
+  var API_BASE = '';
+  var PAGE_SIZE = 20;
+  var state = { page: 0, totalPages: 0 };
+  var refreshTimer = null;
+
+  var tbody = document.getElementById('incident-tbody');
+  var emptyMsg = document.getElementById('empty-msg');
+  var errorMsg = document.getElementById('error-msg');
+  var statusLine = document.getElementById('status-line');
+  var rankList = document.getElementById('rank-list');
+  var detailPanel = document.getElementById('detail-panel');
+  var detailBody = document.getElementById('detail-body');
+  var pageInfo = document.getElementById('page-info');
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    return iso.replace('T', ' ').substring(0, 19);
+  }
+
+  function severityBadge(severity) {
+    return '<span class="badge badge-' + severity + '">' + severity + '</span>';
+  }
+
+  function setStatusLine(text, isError) {
+    statusLine.textContent = text;
+    statusLine.style.color = isError ? '#dc2626' : '';
+  }
+
+  function buildIncidentsUrl() {
+    var params = new URLSearchParams();
+    var status = document.getElementById('filter-status').value;
+    var severity = document.getElementById('filter-severity').value;
+    if (status) params.set('status', status);
+    if (severity) params.set('severity', severity);
+    params.set('page', state.page);
+    params.set('size', PAGE_SIZE);
+    params.set('sort', 'detectedAt,desc');
+    return API_BASE + '/api/incidents?' + params.toString();
+  }
+
+  function loadIncidents() {
+    fetch(buildIncidentsUrl())
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        errorMsg.style.display = 'none';
+        renderIncidents(data.content || []);
+        state.totalPages = data.totalPages || 0;
+        pageInfo.textContent = '페이지 ' + (state.page + 1) + ' / ' + Math.max(state.totalPages, 1)
+          + ' (총 ' + (data.totalElements || 0) + '건)';
+        setStatusLine('마지막 갱신: ' + new Date().toLocaleTimeString());
+      })
+      .catch(function (err) {
+        errorMsg.textContent = '사건 목록을 불러오지 못했습니다: ' + err.message;
+        errorMsg.style.display = 'block';
+        setStatusLine('갱신 실패: ' + err.message, true);
+      });
+  }
+
+  function renderIncidents(list) {
+    tbody.innerHTML = '';
+    emptyMsg.style.display = list.length === 0 ? 'block' : 'none';
+    list.forEach(function (incident) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + incident.id + '</td>' +
+        '<td>' + severityBadge(incident.severity) + '</td>' +
+        '<td><span class="status-pill">' + incident.status + '</span></td>' +
+        '<td>' + (incident.ruleTriggered || '-') + '</td>' +
+        '<td>' + (incident.resourceName || ('#' + incident.resourceId)) + '</td>' +
+        '<td>' + formatDate(incident.detectedAt) + '</td>';
+      tr.addEventListener('click', function () { loadDetail(incident.id); });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function loadDetail(id) {
+    fetch(API_BASE + '/api/incidents/' + id)
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (incident) {
+        renderDetail(incident);
+      })
+      .catch(function (err) {
+        detailBody.innerHTML = '<div id="error-msg" style="display:block;">상세 조회 실패: ' + err.message + '</div>';
+        detailPanel.style.display = 'block';
+      });
+  }
+
+  function renderDetail(incident) {
+    var actionsRows = (incident.actions || []).map(function (a) {
+      return '<tr>' +
+        '<td>' + a.actionType + '</td>' +
+        '<td>' + (a.executedBy || '-') + '</td>' +
+        '<td>' + (a.result || '-') + '</td>' +
+        '<td>' + formatDate(a.executedAt) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    detailBody.innerHTML =
+      '<div class="field"><span class="field-label">ID</span>' + incident.id + '</div>' +
+      '<div class="field"><span class="field-label">Resource</span>' + (incident.resourceName || ('#' + incident.resourceId)) + '</div>' +
+      '<div class="field"><span class="field-label">Severity</span>' + severityBadge(incident.severity) + '</div>' +
+      '<div class="field"><span class="field-label">Status</span>' + incident.status + '</div>' +
+      '<div class="field"><span class="field-label">Rule</span>' + (incident.ruleTriggered || '-') + '</div>' +
+      '<div class="field"><span class="field-label">Detected At</span>' + formatDate(incident.detectedAt) + '</div>' +
+      '<div class="field"><span class="field-label">AI Summary</span>' + (incident.aiSummary || '(요약 없음)') + '</div>' +
+      '<h3 style="font-size:0.9rem;margin:12px 0 6px;">조치 이력</h3>' +
+      '<table><thead><tr><th>Type</th><th>Executed By</th><th>Result</th><th>Executed At</th></tr></thead>' +
+      '<tbody>' + (actionsRows || '<tr><td colspan="4">조치 이력 없음</td></tr>') + '</tbody></table>';
+
+    detailPanel.style.display = 'block';
+    detailPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function loadRank() {
+    fetch(API_BASE + '/api/analytics/resource-health-rank')
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (list) {
+        rankList.innerHTML = '';
+        if (!list.length) {
+          rankList.innerHTML = '<span class="sub">데이터 없음</span>';
+          return;
+        }
+        list.slice(0, 8).forEach(function (item, idx) {
+          var div = document.createElement('div');
+          div.className = 'rank-item';
+          div.innerHTML =
+            '<div class="name">#' + (idx + 1) + ' ' + item.resourceName + '</div>' +
+            '<div>' + item.resourceType + ' · <span class="count">' + item.incidentCount + '</span>건</div>';
+          rankList.appendChild(div);
+        });
+      })
+      .catch(function (err) {
+        rankList.innerHTML = '<span class="sub">위험도 랭킹을 불러오지 못했습니다: ' + err.message + '</span>';
+      });
+  }
+
+  function refreshAll() {
+    loadIncidents();
+    loadRank();
+  }
+
+  function scheduleAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    if (document.getElementById('auto-refresh').checked) {
+      refreshTimer = setInterval(refreshAll, 10000);
+    }
+  }
+
+  document.getElementById('refresh-btn').addEventListener('click', refreshAll);
+  document.getElementById('filter-status').addEventListener('change', function () {
+    state.page = 0;
+    loadIncidents();
+  });
+  document.getElementById('filter-severity').addEventListener('change', function () {
+    state.page = 0;
+    loadIncidents();
+  });
+  document.getElementById('auto-refresh').addEventListener('change', scheduleAutoRefresh);
+  document.getElementById('prev-page').addEventListener('click', function () {
+    if (state.page > 0) {
+      state.page -= 1;
+      loadIncidents();
+    }
+  });
+  document.getElementById('next-page').addEventListener('click', function () {
+    if (state.page + 1 < state.totalPages) {
+      state.page += 1;
+      loadIncidents();
+    }
+  });
+
+  refreshAll();
+  scheduleAutoRefresh();
+})();
+</script>
+
+</body>
+</html>
