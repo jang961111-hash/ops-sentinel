@@ -6,7 +6,9 @@ spring:
     name: ops-sentinel
 
   datasource:
-    url: jdbc:h2:mem:opssentinel;DB_CLOSE_DELAY=-1
+    # LOCK_TIMEOUT: IncidentDetectionService의 Resource 비관적 락(SELECT FOR UPDATE) 대기시간.
+    # H2 기본값(1000ms)은 다수 스레드가 동시에 같은 리소스로 몰리면 짧아 재시도가 잦아지므로 여유를 둔다.
+    url: jdbc:h2:mem:opssentinel;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000
     driver-class-name: org.h2.Driver
     username: sa
     password:

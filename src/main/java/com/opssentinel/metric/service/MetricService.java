@@ -1,5 +1,6 @@
 package com.opssentinel.metric.service;
 
+import com.opssentinel.incident.service.IncidentDetectionService;
 import com.opssentinel.metric.entity.MetricSnapshot;
 import com.opssentinel.metric.repository.MetricSnapshotRepository;
 import com.opssentinel.metric.web.dto.SimulateMetricRequest;
@@ -51,6 +52,7 @@ public class MetricService {
 
     private final MetricSnapshotRepository metricSnapshotRepository;
     private final ResourceRepository resourceRepository;
+    private final IncidentDetectionService incidentDetectionService;
     private final Random random = new Random();
 
     /**
@@ -66,6 +68,7 @@ public class MetricService {
             log.debug("Generated metric snapshot: resourceId={}, cpu={}, mem={}, error={}, queue={}",
                     snapshot.getResourceId(), snapshot.getCpuUsage(), snapshot.getMemUsage(),
                     snapshot.getErrorRate(), snapshot.getQueueDepth());
+            incidentDetectionService.detectAndCreate(snapshot);
         }
     }
 
@@ -86,7 +89,9 @@ public class MetricService {
                 .errorRate(request.errorRate() != null ? request.errorRate() : randomErrorRate())
                 .queueDepth(request.queueDepth() != null ? request.queueDepth() : randomQueueDepth())
                 .build();
-        return metricSnapshotRepository.save(snapshot);
+        MetricSnapshot saved = metricSnapshotRepository.save(snapshot);
+        incidentDetectionService.detectAndCreate(saved);
+        return saved;
     }
 
     public MetricSnapshot getLatest(Long resourceId) {
