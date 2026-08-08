@@ -6,12 +6,17 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-09
+
+P1(시간 되면) + P2(시간 남으면만) 전체 완료 — 마스터프롬프트 7장 빌드순서(P0~P2) 전 항목 완성, 전체 17개 이슈 모두 CLOSED(`v7-polish`, `v1.0.0`).
+
 ### Added
-- Docker Compose(app+postgres) 원커맨드 기동 추가 — `Dockerfile`(Gradle 빌드 스테이지 → JRE 21 alpine 런타임 스테이지 멀티스테이지 빌드), `docker-compose.yml`(app+postgres 2개 서비스, postgres healthcheck 통과 후 app 기동), PostgreSQL 접속정보는 `application-docker.yml`이라는 별도 프로필로 분리해 기본 프로필(H2, `IncidentDetectionConcurrencyTest`용으로 튜닝된 LOCK_TIMEOUT/HikariCP 설정)에 영향 없음. `.env.example` 추가로 DB_PASSWORD/OPENAI_API_KEY/JWT_SECRET/ADMIN_PASSWORD 등을 커밋 없이 로컬 `.env`로만 주입 (#16)
+- `AiSummaryService` 추가 — OpenAI Chat Completions API(`gpt-4o-mini`, Spring 6 `RestClient` + `SimpleClientHttpRequestFactory` 타임아웃 3초)로 Incident 판단근거 자연어 요약(aiSummary)을 생성해 `IncidentActionService.decideAndRecord` 조치 결정 직후 채워 저장. `OPENAI_API_KEY` 미설정 시 네트워크 호출 자체를 건너뛰고, 호출 실패/타임아웃 시에도 예외를 흡수해 기본 템플릿 문장으로 대체하므로 연동 장애가 Incident 생성 흐름을 막지 않음(US-013) (#13)
 - JWT 최소 구현으로 관리자 전용 엔드포인트(`GET /api/audit-logs`, `PATCH /api/incidents/{id}/resolve`) 보호 — `POST /api/auth/token`(고정 admin 계정 검증, `admin.password` 프로퍼티)으로 토큰 발급, `JwtTokenProvider`(jjwt, `jwt.secret` 미설정 시 랜덤 키 생성)로 서명·검증, `JwtAuthenticationFilter`(`OncePerRequestFilter`)가 위 두 엔드포인트만 정확히 매칭해 `Authorization: Bearer` 헤더를 강제하고 실패 시 공통 에러 포맷(`{timestamp,status,error,message,path}`)으로 401 응답. Spring Security 풀스택 대신 jjwt+커스텀 필터를 택한 이유는 회원/역할 체계가 없는 이 프로젝트 스케일에 풀스택 도입이 과설계이기 때문(US-014) (#14)
 - Swagger UI에 JWT Bearer 토큰 입력 UI(Authorize 버튼) 노출 — `OpenApiConfig`로 `bearerAuth` 시큐리티 스키마 등록, 보호 대상 두 엔드포인트에만 `@SecurityRequirement` 적용 (#14)
-- `AiSummaryService` 추가 — OpenAI Chat Completions API(`gpt-4o-mini`, Spring 6 `RestClient` + `SimpleClientHttpRequestFactory` 타임아웃 3초)로 Incident 판단근거 자연어 요약(aiSummary)을 생성해 `IncidentActionService.decideAndRecord` 조치 결정 직후 채워 저장. `OPENAI_API_KEY` 미설정 시 네트워크 호출 자체를 건너뛰고, 호출 실패/타임아웃 시에도 예외를 흡수해 기본 템플릿 문장으로 대체하므로 연동 장애가 Incident 생성 흐름을 막지 않음(US-013) (#13)
 - 테스트 코드 보강(US-015) — `IncidentRuleEngineTest`에 파라미터화 테스트 13건 추가해 CPU/MEM/QUEUE_DEPTH/ERROR_RATE 4개 규칙의 LOW/MEDIUM/HIGH/CRITICAL 심각도 구간 경계값을 전부 커버(기존엔 MEM_EXCEEDED 테스트 자체가 없었음). 지금까지 테스트가 없었던 `JwtTokenProviderTest`(발급/검증/만료/시크릿 불일치/형식오류 5건), `AiSummaryServiceTest`(OpenAI 미설정 시 기본 템플릿 폴백 2건) 신규 추가. 기존 `IncidentDetectionConcurrencyTest`(동시요청 10건 재현)는 검토 결과 요구사항을 이미 충족해 그대로 유지 (#15)
+- Docker Compose(app+postgres) 원커맨드 기동 추가 — `Dockerfile`(Gradle 빌드 스테이지 → JRE 21 alpine 런타임 스테이지 멀티스테이지 빌드), `docker-compose.yml`(app+postgres 2개 서비스, postgres healthcheck 통과 후 app 기동), PostgreSQL 접속정보는 `application-docker.yml`이라는 별도 프로필로 분리해 기본 프로필(H2, `IncidentDetectionConcurrencyTest`용으로 튜닝된 LOCK_TIMEOUT/HikariCP 설정)에 영향 없음. `.env.example` 추가로 DB_PASSWORD/OPENAI_API_KEY/JWT_SECRET/ADMIN_PASSWORD 등을 커밋 없이 로컬 `.env`로만 주입 (#16)
+- 정적 대시보드 페이지(`src/main/resources/static/dashboard.html`, `http://localhost:8080/dashboard.html`) 추가 — Swagger UI 대신 데모/시연용으로 바로 볼 수 있는 vanilla JS 단일 HTML(프레임워크/빌드도구 없음). `GET /api/incidents`(status/severity 필터, 페이지네이션)로 최근 사건 목록을 severity 배지(LOW=회색/MEDIUM=노랑/HIGH=주황/CRITICAL=빨강)와 함께 표시하고, 행 클릭 시 `GET /api/incidents/{id}`로 조치이력(actions)+aiSummary를 상세 패널에 펼쳐 보여준다. 10초 자동 폴링(토글 가능)과 수동 새로고침을 지원하고, 상단에 `GET /api/analytics/resource-health-rank`로 리소스 위험도 랭킹을 함께 노출. Spring Boot 정적 리소스 서빙을 그대로 활용해 별도 설정이 필요 없고, 참조하는 API 4종 모두 공개 엔드포인트라 CORS/인증 이슈 없음(US-017) (#17)
 
 ### Changed
 - `./gradlew test`가 셸의 `OPENAI_API_KEY`를 테스트 JVM에 전달하지 않도록 `build.gradle`에 고정 — 기존 통합테스트가 매 빌드마다 실제 OpenAI를 호출해 과금·플레이키(flaky)해지는 것을 방지하고 폴백 경로를 항상 검증하게 함 (#13)
