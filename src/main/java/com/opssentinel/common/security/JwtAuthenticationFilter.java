@@ -85,11 +85,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * HEAD 요청은 Spring MVC가 {@code @GetMapping}에 암묵적으로 매핑해 실제로 같은
+     * 컨트롤러 메서드를 실행한다(본문만 응답에 쓰지 않을 뿐 비즈니스 로직은 그대로 탐).
+     * 그런데 이 메서드가 {@link HttpMethod#GET}만 정확히 비교하면 {@code HEAD}는
+     * {@link #PROTECTED_ROUTES}의 어떤 항목과도 일치하지 않아 인증 없이 그대로
+     * 통과해버린다({@code GET /api/audit-logs}는 401인데 {@code HEAD /api/audit-logs}는
+     * 인증 우회로 200이 나가는 문제). GET으로 보호되는 라우트는 HEAD도 같은 라우트로
+     * 취급해 이 우회를 막는다.
+     */
     private boolean requiresAuth(HttpServletRequest request) {
         HttpMethod method = HttpMethod.valueOf(request.getMethod());
+        HttpMethod matchMethod = method == HttpMethod.HEAD ? HttpMethod.GET : method;
         String path = request.getServletPath();
         return PROTECTED_ROUTES.stream()
-                .anyMatch(route -> route.method().equals(method) && pathMatcher.match(route.pattern(), path));
+                .anyMatch(route -> route.method().equals(matchMethod) && pathMatcher.match(route.pattern(), path));
     }
 
     private void writeError(HttpServletResponse response, HttpServletRequest request, String message)
