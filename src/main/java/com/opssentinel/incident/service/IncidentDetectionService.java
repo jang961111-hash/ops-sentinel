@@ -1,6 +1,7 @@
 package com.opssentinel.incident.service;
 
 import com.opssentinel.audit.Auditable;
+import com.opssentinel.common.exception.ConflictException;
 import com.opssentinel.incident.entity.Incident;
 import com.opssentinel.incident.entity.IncidentStatus;
 import com.opssentinel.incident.repository.IncidentRepository;
@@ -70,8 +71,8 @@ public class IncidentDetectionService {
             }
         }
         return incidentRepository.findFirstByResourceIdAndStatusIn(resourceId, OPEN_STATUSES)
-                .orElseThrow(() -> new IllegalStateException(
-                        MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId + " Incident 생성/조회에 실패했습니다"));
+                .orElseThrow(() -> new ConflictException(
+                        MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId + " Incident 생성/조회에 실패했습니다(동시성 충돌)"));
     }
 
     /** 반드시 트랜잭션 안에서 호출돼야 한다 — 락은 트랜잭션 종료 시 해제된다. */
