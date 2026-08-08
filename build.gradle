@@ -32,6 +32,13 @@ dependencies {
 	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
+	// US-014: 관리자 전용 엔드포인트(GET /api/audit-logs, PATCH /api/incidents/{id}/resolve) 보호용
+	// JWT 최소 구현. Spring Security 풀스택 대신 jjwt 직접 사용 + 커스텀 OncePerRequestFilter를
+	// 택한 이유는 common/security/JwtAuthenticationFilter의 클래스 주석 참고.
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
