@@ -1,0 +1,49 @@
+erDiagram
+  RESOURCE ||--o{ METRIC_SNAPSHOT : "지표 발생"
+  RESOURCE ||--o{ INCIDENT : "사건 발생"
+  INCIDENT ||--o{ INCIDENT_ACTION : "조치 기록"
+  RESOURCE {
+    Long id PK
+    String name
+    ResourceType type "SERVER/DATABASE/QUEUE/API"
+    LocalDateTime createdAt
+  }
+  METRIC_SNAPSHOT {
+    Long id PK
+    Long resourceId FK
+    Double cpuUsage
+    Double memUsage
+    Double errorRate
+    Integer queueDepth
+    LocalDateTime capturedAt
+  }
+  INCIDENT {
+    Long id PK
+    Long resourceId FK
+    IncidentSeverity severity "LOW/MEDIUM/HIGH/CRITICAL"
+    IncidentStatus status "DETECTED/ANALYZING/RESOLVED"
+    String ruleTriggered
+    String aiSummary "OpenAI 생성 or 폴백"
+    Long version "낙관적 락"
+    LocalDateTime detectedAt
+    LocalDateTime resolvedAt
+  }
+  INCIDENT_ACTION {
+    Long id PK
+    Long incidentId FK
+    ActionType actionType "MONITOR/BACKUP/RESTART/ALERT/ESCALATE"
+    String executedBy "기본값 SYSTEM_AGENT"
+    String result
+    LocalDateTime executedAt
+  }
+  AUDIT_LOG {
+    Long id PK
+    String actorType
+    String action
+    String targetType "Incident 등"
+    Long targetId
+    String requestSummary
+    ResultStatus resultStatus "SUCCESS/FAIL"
+    String errorMessage
+    LocalDateTime createdAt
+  }

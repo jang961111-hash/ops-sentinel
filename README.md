@@ -1,8 +1,21 @@
 # Ops Sentinel
 
+![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-6DB33F?logo=springboot&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-45%20passed-brightgreen)
+![License](https://img.shields.io/badge/license-education%20use%20only-lightgrey)
+
 > 가상 인프라 지표를 감시하다가 이상을 감지하면 스스로 사건을 생성·심각도 판정·조치기록·AI 요약까지 수행하고, 모든 과정을 감사 가능하게 남기는 백엔드 API
 
 SKALA 4기 백엔드 최종 실습 제출물(개인 과제) · Spring Boot 3.3 / Java 21 / Gradle
+
+![기술 스택](docs/images/tech-stack.png)
+
+> 위 이미지의 "Spring Boot 3.2" 표기는 다이어그램 제작 시점의 오기다. 실제 적용 버전은 `build.gradle` 기준 **Spring Boot 3.3.4**다(이 이미지는 mermaid 소스가 없는 HTML 기반이라 텍스트 재렌더링이 어려워, 정정 사실을 이 캡션으로 병기한다). 나머지 스택 표기(Java 21 / Gradle / PostgreSQL / H2 / MyBatis / Swagger·OpenAPI / OpenAI API / JWT / Docker Compose / JUnit 5 / GitHub Flow)는 코드와 대조 검증을 마쳤다.
+
+![지표 이상→Incident 생성→AI 요약 시나리오](docs/images/capture-scenario.gif)
+
+> 위 GIF는 실제 로컬 서버(`./gradlew bootRun`)에 대한 `curl` 호출 4단계(리소스 등록 → 지표 이상치 주입 → 사건 목록 확인 → 사건 상세의 조치이력·AI 요약 확인)를 그대로 이어붙인 것이다(`docs/pdf/captures/07-scenario-step1~4` 원본 재사용).
 
 ---
 
@@ -36,6 +49,10 @@ SKALA 4기 백엔드 최종 실습 제출물(개인 과제) · Spring Boot 3.3 /
 
 ## 2. 아키텍처
 
+![시스템 아키텍처](docs/images/architecture.png)
+
+> 클래스명(`IncidentRuleEngine`, `IncidentDetectionService`, `IncidentActionService`, `AiSummaryService`, `AuditLogAspect`)과 락 방식(비관적 락)까지 실제 소스와 대조해 반영한 다이어그램이다(`docs/images/source/architecture.mmd`).
+
 ### 2-1. 왜 모듈러 모놀리식인가 (ADR 요약)
 
 | 옵션 | 채택 여부 | 근거 |
@@ -62,6 +79,12 @@ src/main/java/com/opssentinel
 
 - 단건 CRUD, 상태 전이, 락이 필요한 조회(`SELECT ... FOR UPDATE`)는 **Spring Data JPA**로 처리한다. `Resource`, `MetricSnapshot`, `Incident`, `IncidentAction`, `AuditLog` 5개 엔티티가 대상이다.
 - 여러 테이블을 JOIN하고 `GROUP BY`, `CASE`, `AVG` 등으로 집계해야 하는 통계성 조회(`/api/analytics/*`)는 **MyBatis**(`AnalyticsMapper.xml`)로 순수 SQL을 직접 작성한다. JPA로도 구현할 수는 있지만, 다중 테이블 집계를 억지로 JPQL/Criteria로 표현하면 가독성이 떨어지고 실행 계획을 예측하기 어려워지므로 역할을 명확히 나눴다.
+
+### 2-4. 데이터 모델 (ERD)
+
+![ERD](docs/images/erd.png)
+
+실제 엔티티 클래스(`Resource`, `MetricSnapshot`, `Incident`, `IncidentAction`, `AuditLog`)의 필드명·타입·Enum 값을 한 줄씩 대조해 작성했다(`docs/images/source/erd.mmd`).
 
 ## 3. 핵심 시나리오
 
@@ -93,6 +116,8 @@ src/main/java/com/opssentinel
 7. 운영자는 `GET /api/incidents`, `GET /api/incidents/{id}`, `GET /api/analytics/*`로 사건과 통계를 조회하고, 처리가 끝난 사건은 `PATCH /api/incidents/{id}/resolve`로 종료 처리한다(재해결 요청은 멱등하게 무시되어 최초 resolvedAt이 유지된다). 이 두 관리자 전용 엔드포인트(`GET /api/audit-logs`, `PATCH /api/incidents/{id}/resolve`)는 `POST /api/auth/token`으로 발급받은 JWT(`Authorization: Bearer`)가 있어야 호출할 수 있다.
 
 ## 4. 판단(규칙엔진) vs 설명(LLM) 역할 분리
+
+![판단·설명 분리 흐름](docs/images/decision-flow.png)
 
 이 프로젝트에서 **"판단"은 전적으로 규칙 기반 엔진(`IncidentRuleEngine`)이 담당한다.** 지표가 임계치(예: 에러율 5% 이상, CPU 90% 이상)를 넘었는지, 심각도를 LOW/MEDIUM/HIGH/CRITICAL 중 무엇으로 매길지, 어떤 조치(MONITOR/ALERT/RESTART/BACKUP/ESCALATE)를 취할지는 모두 if-else 기반 규칙으로 결정되며 결정론적이고 재현 가능하다.
 
@@ -151,11 +176,23 @@ docker compose down
 
 `http://localhost:8080/dashboard.html` — Swagger 대신 최근 사건 목록과 리소스 위험도 랭킹을 바로 볼 수 있는 정적 페이지(vanilla JS, 인증 불필요).
 
+### 화면 구성 (와이어프레임)
+
+![와이어프레임](docs/images/wireframe.png)
+
 ### 헬스체크
 
 `http://localhost:8080/actuator/health` — 기본 헬스체크. 하위 컴포넌트 상세는 `show-details: always` 설정으로 함께 노출된다(예: `/actuator/health` 응답 안의 `incidentEngine` 컴포넌트).
 
+CRITICAL 등급의 미해결 사건이 있으면 `incidentEngine` 컴포넌트가 DOWN으로 바뀌고, 해결(resolve) 처리하면 다시 UP으로 돌아온다 — 실제 로컬 서버로 재현한 캡처:
+
+| ① 초기 UP | ② CRITICAL 발생 → DOWN | ③ resolve 처리 → 다시 UP |
+|---|---|---|
+| ![Actuator UP](docs/images/capture-actuator-up.png) | ![Actuator DOWN](docs/images/capture-actuator-down.png) | ![Actuator UP again](docs/images/capture-actuator-up-after.png) |
+
 ## 6. API 목록
+
+![Swagger UI 전체 엔드포인트](docs/images/capture-swagger.png)
 
 `🔒`가 붙은 엔드포인트는 관리자 전용이다 — 먼저 `POST /api/auth/token`으로 JWT를 발급받아
 `Authorization: Bearer <token>` 헤더에 실어 호출해야 하며, 없거나 유효하지 않으면 401을 응답한다.
@@ -237,6 +274,12 @@ docker compose down
 - `Incident.version`에 거는 낙관적 락은 이미 존재하는 같은 row를 다시 쓸 때만 충돌을 감지할 뿐, **서로 다른 두 개의 새 row가 동시에 insert되는 상황 자체는 막지 못한다** — 애초에 검사 시점에 "OPEN 사건이 없다"고 두 스레드가 동시에 판단하기 때문이다.
 
 이 때문에 검사와 생성을 감싸는 임계구간 자체를 Resource 행 락으로 직렬화하는 방식을 채택했다.
+
+### 실측 검증
+
+동일 `resourceId`로 `POST /api/metrics/simulate` 10건을 동시에 보내도 HTTP 201은 10건 모두 성공하지만, 실제 생성된 OPEN(DETECTED/ANALYZING) Incident는 정확히 1건만 남는다:
+
+![동시성 테스트 통과](docs/images/capture-concurrency.png)
 
 ## 8. 감사로그(AOP)
 

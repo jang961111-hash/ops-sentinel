@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant M as MetricSnapshot
+  participant R as IncidentRuleEngine(결정론적 판단)
+  participant I as Incident
+  participant Ag as IncidentActionService(조치 결정)
+  participant L as AiSummaryService(OpenAI 연동)
+  participant Au as AuditLogAspect(AOP, REQUIRES_NEW)
+
+  M->>R: 임계치 비교
+  activate R
+  R->>R: 규칙 기반 판단 (재현·검증 가능)
+  R-->>Au: [AOP] 판단 결과 100% 기록
+  deactivate R
+  R->>I: 이상 감지 시 Incident 생성
+  I->>Ag: 심각도별 조치 자동 결정
+  Ag-->>Au: [AOP] 조치 이력 기록
+  Ag->>L: 판단 근거 자연어 설명 요청 (3s timeout)
+  alt 정상 응답
+    L-->>I: aiSummary 저장
+  else 타임아웃 / 실패
+    L-->>I: 안전한 폴백 문장 저장
+  end
+  I-->>Au: [AOP] 최종 상태 기록 (성공/실패 무관 100%)
