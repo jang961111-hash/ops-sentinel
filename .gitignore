@@ -40,6 +40,9 @@ application-secrets.yml
 ### 참고용 자료 (코드에 반영 안 함, 저장소 비대화 방지) ###
 docs/reference/
 
+### 최종 제출용 zip (이미 추적 중인 파일의 재압축본 — 저장소 비대화 방지, PDF 원본은 계속 추적) ###
+docs/pdf/*.zip
+
 ### OMC 런타임 아티팩트 (세션 상태, 커밋 대상 아님) ###
 .omc/*
 !.omc/skills/
