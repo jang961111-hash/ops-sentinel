@@ -4,6 +4,7 @@ import com.opssentinel.metric.service.MetricService;
 import com.opssentinel.metric.web.dto.MetricSnapshotResponse;
 import com.opssentinel.metric.web.dto.SimulateMetricRequest;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -45,7 +46,9 @@ public class MetricController {
     @GetMapping("/{resourceId}/history")
     public List<MetricSnapshotResponse> history(
             @PathVariable Long resourceId,
+            @Parameter(description = "조회 시작 시각(ISO-8601), 미지정 시 전체")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @Parameter(description = "조회 종료 시각(ISO-8601), 미지정 시 전체")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         return metricService.getHistory(resourceId, from, to).stream()
                 .map(MetricSnapshotResponse::from)

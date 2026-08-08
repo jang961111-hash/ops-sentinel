@@ -1,8 +1,11 @@
 package com.opssentinel.resource.repository;
 
 import com.opssentinel.resource.entity.Resource;
+import com.opssentinel.resource.entity.ResourceType;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -18,4 +21,8 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM Resource r WHERE r.id = :id")
     Optional<Resource> lockById(@Param("id") Long id);
+
+    /** type이 null이면 전체, 아니면 해당 타입만 필터링해 페이지 조회한다(GET /api/resources). */
+    @Query("SELECT r FROM Resource r WHERE (:type IS NULL OR r.type = :type)")
+    Page<Resource> search(@Param("type") ResourceType type, Pageable pageable);
 }
