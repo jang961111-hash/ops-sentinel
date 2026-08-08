@@ -114,8 +114,8 @@
   #detail-panel .field { margin-bottom: 8px; font-size: 0.85rem; }
   #detail-panel .field-label { color: var(--text-muted); margin-right: 6px; }
   #detail-panel table { margin-top: 8px; }
-  #empty-msg, #error-msg { color: var(--text-muted); font-size: 0.85rem; padding: 10px 0; }
-  #error-msg { color: #dc2626; }
+  #empty-msg, #error-msg, .error-text { color: var(--text-muted); font-size: 0.85rem; padding: 10px 0; }
+  #error-msg, .error-text { color: #dc2626; }
   .pagination { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
 </style>
 </head>
@@ -275,7 +275,7 @@
         renderDetail(incident);
       })
       .catch(function (err) {
-        detailBody.innerHTML = '<div id="error-msg" style="display:block;">상세 조회 실패: ' + err.message + '</div>';
+        detailBody.innerHTML = '<div class="error-text">상세 조회 실패: ' + err.message + '</div>';
         detailPanel.style.display = 'block';
       });
   }
