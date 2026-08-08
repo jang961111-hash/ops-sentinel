@@ -10,9 +10,9 @@ curl/gh/git/gradle 명령의 실제 응답을 다크테마 터미널 스타일(�
 | 항목 | 값 | 근거 |
 |---|---|---|
 | 엔드포인트 개수 | **13개** | `GET /v3/api-docs` paths 집계 (Auth 1 + Resource 3 + Metric 3 + Incident 3 + Analytics 2 + Audit Log 1) |
-| 테스트 건수 | **45건, 0 실패, 0 무시** | `./gradlew clean test` 프레시 실행 + `build/reports/tests/test/index.html` |
+| 테스트 건수 | **46건, 0 실패, 0 무시** | `./gradlew clean test` 프레시 실행 + `build/reports/tests/test/index.html` |
 | 이슈 개수 | **17개 (전체 CLOSED)** | `gh issue list --state closed` |
-| PR 개수 | **21개 (전체 MERGED)** | `gh pr list --state merged` |
+| PR 개수 | **27개 (전체 MERGED, 표지 확정 시점 기준)** | `gh pr list --state merged` |
 | 태그 개수 | **12개** | `git tag` |
 
 ## 동시성 테스트 실측
@@ -60,10 +60,10 @@ curl/gh/git/gradle 명령의 실제 응답을 다크테마 터미널 스타일(�
 | `10-actuator-05-up-after.png` | 7. Actuator 헬스체크 검증 | 다시 UP 확인 (unresolvedCriticalCount=0) |
 | `11-openai-fallback.png` | 8. OpenAI 연동 검증(폴백) | `OPENAI_TIMEOUT_MS=1`로 서버 재기동 후 강제 타임아웃 → 폴백 템플릿 문장 확인 |
 | `12-github-issues-closed.png` | 9. Git/협업 워크플로우 증빙 | `gh issue list --state closed` — 17건 전부 CLOSED |
-| `13-github-prs-merged.png` | 9. Git/협업 워크플로우 증빙 | `gh pr list --state merged` — 21건 전부 MERGED |
+| `13-github-prs-merged.png` | 9. Git/협업 워크플로우 증빙 | `gh pr list --state merged` — 27건 전부 MERGED(표지 확정 시점 기준) |
 | `14-git-log-graph.png` | 9. Git/협업 워크플로우 증빙 | `git log --oneline --graph -30` |
 | `15-gradle-test-terminal.png` | 10. 테스트 결과 | `./gradlew clean test --console=plain` 프레시 실행, BUILD SUCCESSFUL |
-| `16-gradle-test-report-browser.png` | 10. 테스트 결과 | Gradle HTML 테스트 리포트 — 45 tests, 0 failures, 100% successful (패키지별 분포) |
+| `16-gradle-test-report-browser.png` | 10. 테스트 결과 | Gradle HTML 테스트 리포트 — 46 tests, 0 failures, 100% successful (패키지별 분포) |
 
 ## 참고 — 사용된 리소스/사건 ID (재현 시 참고)
 

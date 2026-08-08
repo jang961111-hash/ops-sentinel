@@ -95,7 +95,7 @@ function textPage({ num, title, subtitle, html, center }) {
         <tr><td>제출일</td><td>2026-08-08</td></tr>
         <tr><td>저장소</td><td>github.com/jang961111-hash/ops-sentinel</td></tr>
         <tr><td>기술 스택</td><td>Spring Boot 3.3 · Java 21 · Gradle · JPA(CRUD) + MyBatis(집계) · H2(기본)/PostgreSQL(Docker) · OpenAI API(gpt-4o-mini) · JWT(jjwt) · springdoc-openapi(Swagger)</td></tr>
-        <tr><td>규모</td><td>엔드포인트 13개 · 테스트 45건(0 실패) · 이슈 17개(전체 CLOSED) · PR 24개(전체 MERGED, 표지 확정 시점 기준) · 태그 12개</td></tr>
+        <tr><td>규모</td><td>엔드포인트 13개 · 테스트 46건(0 실패) · 이슈 17개(전체 CLOSED) · PR 27개(전체 MERGED, 표지 확정 시점 기준) · 태그 12개</td></tr>
       </table>
       <div class="cover-links">
         <div class="cover-links-title">바로가기 (전부 접속 확인 완료, HTTP 200)</div>
@@ -541,12 +541,12 @@ capturePage({
   verify: '이슈 개수 = 17개, 전부 CLOSED — 스프린트 P0(1~12) → P1(13~15) → P2(16~17) 순서와 04_일정관리.md의 스프린트 계획이 정확히 일치.',
 });
 capturePage({
-  num: 9, title: 'Git/협업 워크플로우 증빙', subtitle: 'GitHub PR 목록 — 24건 전체 MERGED (표지 확정 시점 기준)',
+  num: 9, title: 'Git/협업 워크플로우 증빙', subtitle: 'GitHub PR 목록 — 27건 전체 MERGED (표지 확정 시점 기준)',
   cmd: `$ gh pr list --state merged --limit 30`,
   imageSrc: img('13-github-prs-merged.png'), imageAlt: 'PRs merged',
-  proves: '요구사항 "Git 워크플로우(PR 템플릿·머지 이력)"를 증명 — 이슈 대비 PR이 7건 더 많은 이유(architect 검증 후속 수정 및 PDF 제출물 준비 PR #35~41)까지 추적 가능.',
-  read: 'PR #18~41까지 전부 MERGED, 브랜치명이 <code>feat/N-설명</code>·<code>fix/N-설명</code>·<code>docs/설명</code> 컨벤션을 따르는지 확인한다.',
-  verify: 'PR 개수 = 24개 전부 MERGED(이 페이지를 확정한 시점 기준 — 이 문서 자체를 만들고 제출하는 PR이 머지되면 개수가 다시 늘어나므로, 문서가 자기 자신의 최종 PR 번호까지 완벽히 예측할 수는 없는 구조적 한계를 정직하게 남긴다). 이슈(17개)보다 PR이 많은 이유는 P0~P2 기능 개발 PR 17개 외에 릴리스 이후 발견된 architect 검증 결함 수정(#36) + 정직성 정리(#37) + AI 슬롭 정리(#38) + PDF 캡처수집/조판/최종검증(#39~41) 등 이슈 없이 진행된 후속 PR이 추가됐기 때문(p.37 참고).',
+  proves: '요구사항 "Git 워크플로우(PR 템플릿·머지 이력)"를 증명 — 이슈 대비 PR이 10건 더 많은 이유(architect 검증 후속 수정, PDF 제출물 준비, 콜드스타트 채점 후속 결함 수정 PR #35~44)까지 추적 가능.',
+  read: 'PR #18~44까지 전부 MERGED, 브랜치명이 <code>feat/N-설명</code>·<code>fix/N-설명</code>·<code>docs/설명</code> 컨벤션을 따르는지 확인한다.',
+  verify: 'PR 개수 = 27개 전부 MERGED(이 페이지를 확정한 시점 기준 — 이 문서 자체를 만들고 제출하는 PR이 머지되면 개수가 다시 늘어나므로, 문서가 자기 자신의 최종 PR 번호까지 완벽히 예측할 수는 없는 구조적 한계를 정직하게 남긴다). 이슈(17개)보다 PR이 많은 이유는 P0~P2 기능 개발 PR 17개 외에 릴리스 이후 발견된 architect 검증 결함 수정(#36) + 정직성 정리(#37) + AI 슬롭 정리(#38) + PDF 캡처수집/조판/최종검증(#39~41) + 표지 날짜/README 정리(#42~43) + 콜드스타트 채점에서 발견된 동시성 결함 수정(#44) 등 이슈 없이 진행된 후속 PR이 추가됐기 때문(p.37 참고).',
 });
 capturePage({
   num: 9, title: 'Git/협업 워크플로우 증빙', subtitle: 'git log --oneline --graph -30 — 커밋 컨벤션',
@@ -566,14 +566,14 @@ capturePage({
   imageSrc: img('15-gradle-test-terminal.png'), imageAlt: 'gradle test terminal',
   proves: '요구사항 "테스트 코드"를 증명 — clean 상태에서 캐시 없이 전체 테스트를 프레시 실행해 결과를 확보했다.',
   read: 'BUILD SUCCESSFUL, 5 actionable tasks: 5 executed 확인.',
-  verify: '45 tests, 0 failures, 0 ignored, 0.498s — 캐시된 이전 결과가 아니라 이번 세션에서 직접 재실행해 확보한 수치.',
+  verify: '46 tests, 0 failures, 0 ignored, 0.524s — 캐시된 이전 결과가 아니라 이번 세션에서 직접 재실행해 확보한 수치(콜드스타트 채점 후속 동시성 결함 수정 PR #44에서 40건 동시요청 회귀 테스트 1건 추가).',
 });
 capturePage({
   num: 10, title: '테스트 결과', subtitle: 'Gradle HTML 테스트 리포트 — 패키지별 분포',
   imageSrc: img('16-gradle-test-report-browser.png'), imageAlt: 'gradle test report',
   proves: '테스트가 동시성 재현(<code>IncidentDetectionConcurrencyTest</code>), 규칙엔진 경계값(파라미터화 13건), JWT, AI 폴백까지 고르게 커버함을 증명.',
   read: '<code>build/reports/tests/test/index.html</code>의 패키지별 테스트 건수와 100% successful 배지를 확인한다.',
-  verify: '전체 45건, 실패 0건 — 규칙엔진 심각도 경계값(LOW/MEDIUM/HIGH/CRITICAL × CPU/MEM/QUEUE/ERROR 4개 규칙) 파라미터화 테스트가 가장 큰 비중을 차지한다.',
+  verify: '전체 46건, 실패 0건 — 규칙엔진 심각도 경계값(LOW/MEDIUM/HIGH/CRITICAL × CPU/MEM/QUEUE/ERROR 4개 규칙) 파라미터화 테스트가 가장 큰 비중을 차지하고, incident.service 패키지(26건)에는 이번에 추가된 40건 동시요청 회귀 테스트도 포함된다.',
 });
 
 // ============================================================
@@ -601,7 +601,7 @@ capturePage({
 {
   const html = `
     <h3 class="op-h">1. 막혔던 부분 &amp; 해결 과정</h3>
-    <p class="p op">독립 architect(Opus) 검증에서 <b>REJECTED</b> 판정을 받은 뒤 실제 재현 → 수정 → 재검증한 결함 5건(C1~C5)이 가장 구체적인 사례다. <b>C1</b>: <code>AuditLogAspect.extractTargetId</code>가 반환값에서 id를 못 찾으면 메서드 인자 중 아무 <code>getId()</code>나 가져다 썼는데, <code>detectAndCreate()</code>가 정상 지표(약 90% 확률)에서 <code>Optional.empty()</code>를 반환해도 이 폴백이 발동해 <b>인자로 넘어온 MetricSnapshot의 id가 targetType="Incident" 감사로그의 targetId로 잘못 기록</b>됐다 — Optional.empty()가 "타겟 없음"이라는 확정 신호였는데 그 신호를 무시하고 엉뚱한 id를 삼킨 것. 반환 타입이 Optional이면 그 값을 그대로 신뢰하도록 수정. <b>C2</b>: HikariCP 풀을 3으로 좁히고 40건 동시요청을 보내자 클라이언트 실패가 40건 발생했는데, <code>recordFailure()</code>(REQUIRES_NEW, 별도 커넥션 필요)가 커넥션 고갈로 자체 실패하면 <b>그 예외가 원래 비즈니스 예외를 덮어써</b> FAIL 감사로그가 40건 중 4건만 남았다(약 90% 유실) — "커넥션 풀 고갈이 원래 예외를 삼켰다". 감사기록 호출 자체를 try-catch로 한 번 더 감싸 39건 중 34건(87%)까지 개선(정상 pool=30에서는 40/40 전량 기록). <b>C3</b>: <code>GlobalExceptionHandler</code>가 <code>ResponseEntityExceptionHandler</code>를 상속하지 않아 Spring MVC 프레임워크 예외(깨진 JSON, 405, 404)가 최상위 catch-all로 떨어져 전부 500이 됐던 것을 상속·오버라이드로 수정. <b>flaky test</b>: <code>IncidentActionServiceTest</code>가 4개 지표 필드 중 1개만 지정하고 나머지를 null로 둬 <code>MetricService</code>의 10% 확률 이상치 혼입 로직에 의존했는데, 드물게 더 심각한 규칙이 함께 트리거되며 반복 빌드마다 간헐적으로 실패했다 — 4개 필드를 모두 명시적 안전값으로 채워 결정론적으로 만들어 근본 원인을 제거했다.</p>
+    <p class="p op">독립 architect(Opus) 검증에서 <b>REJECTED</b> 판정을 받은 뒤 실제 재현 → 수정 → 재검증한 결함 5건(C1~C5)이 가장 구체적인 사례다. <b>C1</b>: <code>AuditLogAspect.extractTargetId</code>가 반환값에서 id를 못 찾으면 메서드 인자 중 아무 <code>getId()</code>나 가져다 썼는데, <code>detectAndCreate()</code>가 정상 지표(약 90% 확률)에서 <code>Optional.empty()</code>를 반환해도 이 폴백이 발동해 <b>인자로 넘어온 MetricSnapshot의 id가 targetType="Incident" 감사로그의 targetId로 잘못 기록</b>됐다 — Optional.empty()가 "타겟 없음"이라는 확정 신호였는데 그 신호를 무시하고 엉뚱한 id를 삼킨 것. 반환 타입이 Optional이면 그 값을 그대로 신뢰하도록 수정. <b>C2</b>: HikariCP 풀을 3으로 좁히고 40건 동시요청을 보내자 클라이언트 실패가 40건 발생했는데, <code>recordFailure()</code>(REQUIRES_NEW, 별도 커넥션 필요)가 커넥션 고갈로 자체 실패하면 <b>그 예외가 원래 비즈니스 예외를 덮어써</b> FAIL 감사로그가 40건 중 4건만 남았다(약 90% 유실) — "커넥션 풀 고갈이 원래 예외를 삼켰다". 감사기록 호출 자체를 try-catch로 한 번 더 감싸 39건 중 34건(87%)까지 개선(정상 pool=30에서는 40/40 전량 기록). <b>C3</b>: <code>GlobalExceptionHandler</code>가 <code>ResponseEntityExceptionHandler</code>를 상속하지 않아 Spring MVC 프레임워크 예외(깨진 JSON, 405, 404)가 최상위 catch-all로 떨어져 전부 500이 됐던 것을 상속·오버라이드로 수정. <b>flaky test</b>: <code>IncidentActionServiceTest</code>가 4개 지표 필드 중 1개만 지정하고 나머지를 null로 둬 <code>MetricService</code>의 10% 확률 이상치 혼입 로직에 의존했는데, 드물게 더 심각한 규칙이 함께 트리거되며 반복 빌드마다 간헐적으로 실패했다 — 4개 필드를 모두 명시적 안전값으로 채워 결정론적으로 만들어 근본 원인을 제거했다. v1.0.1 제출 이후 architect가 <b>콜드스타트</b>(사전지식 없이) 채점하며 6번째 결함을 추가로 발견했다: 동일 resourceId에 40건 동시요청을 보내면 29건이 500으로 실패하는데 AuditLog에는 실패가 0건만 기록됐다 — H2 락 타임아웃(HYT00)으로 HikariCP가 커넥션을 폐기하면 <code>TransactionTemplate</code> 롤백 시도가 이미 닫힌 커넥션을 만나 <code>JpaSystemException</code>으로 원래 예외가 감싸지는데, 재시도 catch 목록에 이 타입이 없어 재시도도 409 응답도 도달하지 못하고 그대로 샜다. 직접 재현(28/40건 500 실측) → 재시도 대상에 <code>JpaSystemException</code> 등 3개 타입 추가 + 최종 폴백 조회 보강 + HikariCP 풀 30→60 증설 → 재검증(3회 반복, 매회 40/40건 201·AuditLog 40/40 일치, 500 0건)까지 마쳤다(PR #44, CHANGELOG 1.0.2 참고).</p>
     <h3 class="op-h">2. 왜 이 방법을 선택했나</h3>
     <p class="p op">모듈러 모놀리식 vs MSA는 "혼자·제한시간" 조건에서 서비스 간 통신·분산 트랜잭션·배포 파이프라인을 감당할 실익이 없다고 판단해 모듈러 모놀리식을 택했다(p.5 ADR). 규칙엔진(판단)+LLM(설명) 분리는 FINOS Tier 2 요구사항과 "이게 진짜 AI냐"는 과장 논란을 피하기 위한 의도적 설계다 — 판단을 LLM에 맡기면 재현성·설명력·테스트 용이성이 모두 떨어진다. JPA(CRUD)/MyBatis(집계) 분담은 다중 테이블 집계를 JPQL로 표현하면 가독성이 떨어지고 실행계획을 예측하기 어렵다는 실무적 판단에서다. 동시성 제어는 원래 <code>Incident.version</code> 낙관적 락을 계획했으나, H2가 부분 unique 인덱스(<code>resourceId+status=OPEN</code>)를 지원하지 않고 <b>낙관적 락은 이미 존재하는 같은 row를 다시 쓸 때만 충돌을 감지할 뿐 서로 다른 두 새 row가 동시에 insert되는 상황 자체는 막지 못한다</b>는 점이 드러나 Resource 행 비관적 락으로 전환했다.</p>`;
   textPage({ num: 4, title: '의견 · 개선사항', subtitle: '1. 막혔던 부분 & 해결 과정  ·  2. 왜 이 방법을 선택했나', html });
@@ -609,7 +609,7 @@ capturePage({
 {
   const html = `
     <h3 class="op-h">3. 개선 사항 / 코드 품질 의견</h3>
-    <p class="p op">현재 코드의 한계를 스스로 지적한다. (1) 실제 인프라가 아닌 시뮬레이션 데이터라, 학술논문·FINOS 문서가 전제하는 "실제 프로덕션 규모 로그·트래픽"은 다루지 않는다. (2) AOP(<code>AuditLogAspect</code>)는 로깅(감사) 관심사 하나만 다룬다 — 트랜잭션 재시도, 성능 계측 등 다른 cross-cutting concern으로는 아직 확장하지 않았다. (3) 관리자 계정이 <code>admin</code> 하나뿐인 최소 구현이다 — 회원가입, role 구분, 토큰 재발급/폐기(refresh/revoke) 같은 정식 인가 체계는 이 과제 스케일에서 과설계라 판단해 의도적으로 제외했다. (4) <code>JWT_SECRET</code>을 고정하지 않으면 재기동마다 랜덤 키가 생성돼 기존 토큰이 무효화된다 — 데모 편의를 위한 의도적 타협이며, 운영 환경에서는 반드시 고정값을 지정해야 한다. (5) <code>/h2-console</code>이 기본 프로필에서 별도 인증 없이 노출된다 — 로컬 데모 편의 설정으로, PostgreSQL 프로필에는 해당하지 않지만 운영 준하는 환경이라면 비활성화가 필수다. (6) 테스트 45건은 규칙엔진 경계값·동시성·JWT·AI 폴백을 커버하지만, 컨트롤러 계층 통합테스트(MockMvc 기반 API E2E)는 상대적으로 얇다.</p>
+    <p class="p op">현재 코드의 한계를 스스로 지적한다. (1) 실제 인프라가 아닌 시뮬레이션 데이터라, 학술논문·FINOS 문서가 전제하는 "실제 프로덕션 규모 로그·트래픽"은 다루지 않는다. (2) AOP(<code>AuditLogAspect</code>)는 로깅(감사) 관심사 하나만 다룬다 — 트랜잭션 재시도, 성능 계측 등 다른 cross-cutting concern으로는 아직 확장하지 않았다. (3) 관리자 계정이 <code>admin</code> 하나뿐인 최소 구현이다 — 회원가입, role 구분, 토큰 재발급/폐기(refresh/revoke) 같은 정식 인가 체계는 이 과제 스케일에서 과설계라 판단해 의도적으로 제외했다. (4) <code>JWT_SECRET</code>을 고정하지 않으면 재기동마다 랜덤 키가 생성돼 기존 토큰이 무효화된다 — 데모 편의를 위한 의도적 타협이며, 운영 환경에서는 반드시 고정값을 지정해야 한다. (5) <code>/h2-console</code>이 기본 프로필에서 별도 인증 없이 노출된다 — 로컬 데모 편의 설정으로, PostgreSQL 프로필에는 해당하지 않지만 운영 준하는 환경이라면 비활성화가 필수다. (6) 테스트 46건은 규칙엔진 경계값·동시성(10건+40건 동시요청)·JWT·AI 폴백을 커버하지만, 컨트롤러 계층 통합테스트(MockMvc 기반 API E2E)는 상대적으로 얇다.</p>
     <h3 class="op-h">4. 한계의 솔직한 인정</h3>
     <p class="p op">기획의 핵심 근거인 SK AX × 대신증권 계약의 1차 소스(공식 뉴스룸)는 이 세션 초반 robots.txt 차단으로 자동 fetch가 3회 모두 실패해, 처음에는 8개 언론사의 2차 보도 교차검증으로만 근거를 구성했었다. 이후 사용자가 직접 브라우저로 접속해 풀페이지 스크린샷(PDF+PNG)을 확보해줘서 원문 텍스트까지 인용할 수 있었다(부록 p.43) — 이 과정 자체를 "확인 못 했던 것을 나중에 확인했다"고 정직하게 기록한다. 원문에는 대신증권 대표이사가 "진승욱"으로 기재돼 있으나, 실제 알려진 대표 체제(오익근·이어룡 각자대표)와 차이가 있을 수 있어 — 검증 없이 임의로 정정하지 않고 <b>SK AX 공식 발표 원문에 기재된 대로</b> 인용했음을 명시한다. 또한 "성과보고서"는 계약 개시(2026.4)로부터 아직 3.5개월밖에 지나지 않아 1단계 시범 적용 진행 중으로 추정되며, 대신증권 건에 특정된 후속 성과 보도는 확인되지 않았다 — 이 프로젝트는 계약의 "설계 철학"을 구현 대상으로 삼았을 뿐 실제 계약의 성과를 검증하거나 대변하지 않는다. 마지막으로, 내부 기획서·제안서·성과보고서 원문은 B2B 계약의 영업비밀 성격상 애초에 공개될 수 없는 문서라는 점도 조사 실패가 아니라 사실관계상 당연한 결과로 판단해 대체 근거(원문 보도자료+8개 매체 교차검증+AXgenticWire 브랜드 공식자료)로 근거 밀도를 최대화했다.</p>`;
   textPage({ num: 4, title: '의견 · 개선사항', subtitle: '3. 개선 사항 / 코드 품질 의견  ·  4. 한계의 솔직한 인정', html });
@@ -633,7 +633,7 @@ capturePage({
 {
   const prs = fs.readFileSync(path.join(CAP, 'raw-logs/13-github-prs-merged.txt'), 'utf-8').trim();
   const html = `<pre class="cmd small appendix-log">${esc(prs)}</pre>`;
-  textPage({ num: '부록 B', title: '부록 — PR 원본 목록', subtitle: 'gh pr list --state merged 실제 출력 전문 (24건, 전체 MERGED — 표지 확정 시점 기준)', html });
+  textPage({ num: '부록 B', title: '부록 — PR 원본 목록', subtitle: 'gh pr list --state merged 실제 출력 전문 (27건, 전체 MERGED — 표지 확정 시점 기준)', html });
 }
 {
   const html = `
@@ -650,9 +650,10 @@ capturePage({
         <tr><td>Sprint 6</td><td>테스트 코드(동시성 재현 + 단위테스트)</td><td>v6-tested</td></tr>
         <tr><td>Sprint 7</td><td>Docker Compose, 정적 대시보드</td><td>v7-polish / v1.0.0</td></tr>
         <tr><td>Sprint 8 (사후)</td><td>architect 최종검증(C1~C5) 수정</td><td>v1.0.1</td></tr>
+        <tr><td>Sprint 9 (사후)</td><td>architect 콜드스타트 채점 발견 동시성 결함 수정</td><td>CHANGELOG 1.0.2 (태그 없음, PR #44)</td></tr>
       </tbody>
     </table>
-    <p class="p-note">매 스프린트 종료 시 <code>git tag</code>를 남겨 언제든 직전 태그로 롤백해 "제출 가능 상태"를 잃지 않는 체크포인트 원칙을 지켰다. 전체 12개 태그는 <code>git tag</code> 실행 결과와 일치한다.</p>
+    <p class="p-note">매 스프린트 종료 시 <code>git tag</code>를 남겨 언제든 직전 태그로 롤백해 "제출 가능 상태"를 잃지 않는 체크포인트 원칙을 지켰다. 전체 12개 태그는 <code>git tag</code> 실행 결과와 일치한다(Sprint 9은 사후 결함 수정이라 별도 태그 없이 CHANGELOG로만 기록).</p>
     <h3 class="mini-h">SK AX 뉴스룸 원문 자료</h3>
     <p class="p-note">SK AX 공식 뉴스룸(<a href="https://www.skax.co.kr/company/news-room/sk-ax-대신증권-에이전틱ai로-금융인프라-운영-혁신-나섰다">skax.co.kr/company/news-room/...</a>)을 2026-08-09 사용자가 직접 브라우저로 접속해 확보한 풀페이지 캡처(PDF+PNG)를 다음 페이지에 원본 그대로 첨부한다.</p>`;
   textPage({ num: '부록 C', title: '부록 — 스프린트 실측 기록 & 원문 확인 자료 안내', subtitle: 'docs/04_일정관리.md 요약 · SK AX 원본 캡처 안내', html });
