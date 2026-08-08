@@ -51,6 +51,8 @@ management:
       # 상세정보를 숨겨 US-010 커스텀 인디케이터가 UP/DOWN 외 상세를 보여주지 못한다.
       show-details: always
 
-springdoc:
-  swagger-ui:
-    path: /swagger-ui/index.html
+# springdoc.swagger-ui.path는 일부러 설정하지 않는다 — springdoc 기본값이 이미
+# `/swagger-ui/index.html`을 직접 서빙하는데, 이 경로를 커스텀 path로 다시 지정하면
+# `/swagger-ui/index.html` -> `/swagger-ui/swagger-ui/index.html`로 이중 리다이렉트되는
+# 버그가 있었다(US-012 self-QA에서 발견). PRD 8장이 요구하는 URL을 리다이렉트 없이
+# 그대로 노출하려면 이 설정을 두지 않는 게 맞다.
