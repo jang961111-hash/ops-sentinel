@@ -1,0 +1,35 @@
+flowchart TB
+  subgraph SIM["① 지표 시뮬레이션"]
+    SCHED["Scheduler @5–10s"] --> METRIC["MetricSnapshot 생성"]
+    MANUAL["POST /metrics/simulate\n(수동 트리거)"] --> METRIC
+  end
+
+  METRIC --> RULE["② IncidentRuleEngine\n결정론적 임계치 판단 (if-else 규칙)"]
+
+  RULE -->|정상| END1["기록만 하고 종료"]
+  RULE -->|이상 감지| INC["③ Incident 생성 (IncidentDetectionService)\n비관적 락 + 재시도, 중복 방지"]
+
+  INC --> SEV["④ 심각도 판정\nLOW / MEDIUM / HIGH / CRITICAL"]
+  SEV --> ACT["⑤ IncidentActionService\n조치 자동 결정 · 기록 (MONITOR/BACKUP/RESTART/ALERT/ESCALATE)"]
+  ACT --> AI["⑥ AiSummaryService → OpenAI API\n판단근거 자연어 요약\n(3s timeout, 실패 시 폴백)"]
+  AI --> STORE[("PostgreSQL / H2")]
+
+  RULE -.AOP Around.-> AUDIT[("⑦ AuditLogAspect → AuditLog\nREQUIRES_NEW · 성공/실패 100% 기록")]
+  INC -.AOP Around.-> AUDIT
+  ACT -.AOP Around.-> AUDIT
+
+  STORE --> API["REST Controller"]
+  API --> SW["Swagger UI"]
+  API --> DASH["정적 대시보드"]
+
+  STORE --> MB["MyBatis 집계쿼리"]
+  MB --> ANALYTICS["/api/analytics/*"]
+
+  API --> HEALTH["Actuator\nCustom HealthIndicator"]
+
+  classDef core fill:#e8f2ee,stroke:#1f7a5a,stroke-width:1.4px,color:#14161a,font-weight:600;
+  classDef store fill:#f4f5f7,stroke:#98a1ac,stroke-width:1px,color:#14161a;
+  classDef audit fill:#fff4e5,stroke:#c88a1f,stroke-width:1.4px,color:#14161a,font-weight:600;
+  class RULE,INC,SEV,ACT,AI core;
+  class STORE,SIM store;
+  class AUDIT audit;
