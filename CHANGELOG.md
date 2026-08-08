@@ -6,6 +6,70 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-09
+
+독립 architect(Opus)의 "콜드스타트"(사전지식 없는) 채점에서 새로 발견된 중대 결함 1건을 실제
+재현 → 수정 → 재검증했다. v1.0.1의 C2가 "감사기록 자체가 커넥션을 못 얻는 극단 상황"을
+다뤘다면, 이번 건은 그 앞단 — 애초에 원래 요청 자체가 정상 처리(201/409)로 끝나지 못하고
+500으로 새는 결함이다.
+
+### Fixed
+- **동시성 부하 상황에서 락 타임아웃이 재시도 없이 500으로 새던 문제** — architect가 동일
+  resourceId에 40건 동시요청(`POST /api/metrics/simulate`)을 보내 재현: **29/40건이 500,
+  AuditLog에는 실패가 0/29건만 기록**됨을 발견했다. 근본원인: H2가 락 타임아웃
+  (SQLSTATE `HYT00`, ErrorCode 50200)을 던지면 HikariCP가 그 커넥션을 커넥션 레벨 오류로
+  판단해 폐기하는데, `TransactionTemplate`이 롤백을 시도하는 시점엔 이미 그 커넥션이 닫혀
+  있어 `org.springframework.orm.jpa.JpaSystemException`(원인:
+  `Unable to rollback against JDBC Connection` → `Connection is closed`)으로 원래 락
+  타임아웃 예외가 감싸져 버린다. `IncidentDetectionService`의 재시도 catch 목록
+  (`PessimisticLockingFailureException | OptimisticLockingFailureException |
+  DataIntegrityViolationException`)에 `JpaSystemException`이 없어 재시도 루프도
+  `ConflictException`(409) 응답도 도달하지 못한 채 그대로 500으로 새 나갔다.
+  이 세션에서 수정 전 상태를 **직접 재현**(동일 resourceId·동일 방식 40건 동시요청)해
+  **28/40건 500**을 실측 확인하고, 서버 로그에서 architect가 진단한 예외 체인
+  (`Unable to rollback against JDBC Connection` → `Connection is closed`)을 그대로
+  재확인했다. `JpaSystemException`/`TransactionSystemException`을 재시도 catch 목록에
+  추가한 뒤 같은 방식으로 재검증하자 **새로운 형태로 같은 근본원인이 재발**함을 추가로
+  발견했다 — 재시도가 다음 트랜잭션을 열려는 순간 `CannotCreateTransactionException`
+  (`JDBC begin transaction failed: Connection is closed`)이 재시도 루프 바깥으로 새는
+  경우, 그리고 `MAX_RETRIES`를 다 소진한 뒤의 최종 폴백 조회(`findFirst...`)마저 같은
+  커넥션 폭풍 한복판에서 실행돼 `JpaSystemException`을 그대로 던지는 경우였다. 이
+  두 가지를 추가로 잡아(`CannotCreateTransactionException`을 재시도 대상에 포함, 최종
+  폴백 조회도 같은 예외 타입에 한해 `ConflictException`으로 수렴하도록 별도 래핑)
+  40건 동시요청 재검증에서 **500이 0건**이 될 때까지 반복 확인했다. 추가로, 같은
+  재검증 과정에서 감사로그 자체(REQUIRES_NEW 트랜잭션)도 이 커넥션 폭풍의 순간에는
+  커넥션을 못 얻어 조용히 유실될 수 있음을 실측으로 확인해(`AuditLogAspect`의
+  `recordSafely`가 설계대로 안전하게 흡수하지만, 그 결과 해당 요청의 감사기록 자체가
+  통째로 남지 않는 문제) HikariCP `maximum-pool-size`를 30 → 60으로 증설했다.
+  (`IncidentDetectionService.java`, `application.yml`)
+
+### 재검증 수치 (이 세션에서 직접 재현, 동일 resourceId·40 스레드 동시 `POST /api/metrics/simulate`)
+- **수정 전**(pool=30): 500 28건 / 201 12건 / 40건 — AuditLog(`INCIDENT_DETECT`) FAIL 기록
+  0건(서버 로그에서 architect가 진단한 예외 체인 그대로 재확인).
+- **catch 목록에 JpaSystemException/TransactionSystemException만 추가**(pool=30, 중간
+  단계): 500 여전히 발생(`CannotCreateTransactionException`이 새 경로로 등장) — 추가 수정
+  필요성을 실측으로 확인한 근거.
+- **전체 코드 수정 완료**(pool=30): 500 0건 / 201 12건 / 409 28건 / 40건 — 500은 사라졌으나
+  AuditLog(`METRIC_SIMULATE`) 기록이 40건 중 12건만 남고 나머지는(409로 응답한 요청들)
+  감사기록 자체가 REQUIRES_NEW 커넥션 획득 실패로 유실됨을 정밀 확인(요청-응답-감사로그
+  타임스탬프 대조).
+- **전체 코드 수정 + HikariCP pool 30→60**: 동일 재현을 **3회 반복** — 매회 500 0건 / 201
+  40건 / 40건, AuditLog(`METRIC_SIMULATE`) 기록도 매회 40/40 정확히 일치(3회 합산
+  120/120, 유실 0건). architect가 사용한 조건(40건 동시요청, 동일 resourceId)에서는
+  재시도조차 필요 없을 만큼 완전히 안정화됐다.
+- **참고(요구사항 범위 밖 추가 스트레스 테스트, 150건 동시요청)**: 500은 여전히 0건(구조적
+  결함은 완전히 해소)이지만, 409로 수렴한 91건 중 AuditLog FAIL 기록은 0건 — 그 순간에도
+  감사로그의 REQUIRES_NEW 트랜잭션이 커넥션을 못 얻는 동일 계열 현상이 재발했다(로그상
+  "AuditLog 기록 자체가 실패했습니다" 182건, 91×2와 정확히 일치 — `INCIDENT_DETECT`·
+  `METRIC_SIMULATE` 두 지점 모두). 즉 "감사로그도 결국 DB 커넥션이 필요하다"는 구조적
+  한계 자체는 이번 수정으로 없어지지 않으며, architect가 채점한 40건 조건에서는 100%
+  달성을 실측 확인했지만 그보다 훨씬 높은 동시성까지 무조건 100%를 보장한다고는 과장하지
+  않는다.
+- 회귀 테스트: 기존 `IncidentDetectionConcurrencyTest`(10건 동시요청)에 더해 이번 결함을
+  재현하는 40건 동시요청 회귀 테스트를 신규 추가(`동일_리소스에_동시요청_40건이_와도_예외없이_처리된다`).
+  `./gradlew clean test` — **46건 전체 통과, 0 실패**(기존 45건 + 신규 1건).
+  (`IncidentDetectionConcurrencyTest.java`)
+
 ## [1.0.1] - 2026-08-09
 
 독립 architect(Opus) 최종검증에서 REJECTED 판정을 받은 실증된 중대 결함 5건(C1~C5)을 전부

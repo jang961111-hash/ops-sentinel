@@ -84,4 +84,52 @@ class IncidentDetectionConcurrencyTest {
         assertThat(openIncidents).as("동시요청 " + CONCURRENT_REQUESTS + "건에도 OPEN Incident는 1건만 존재해야 함")
                 .hasSize(1);
     }
+
+    /**
+     * 콜드스타트 채점(architect)에서 40건 동시요청 중 29건이 500으로 실패한 결함(H2 락
+     * 타임아웃 HYT00 -> HikariCP 커넥션 폐기 -> TransactionTemplate 롤백 시도 시
+     * JpaSystemException으로 원래 예외가 감싸짐 -> 재시도 catch 목록에 없어 그대로 500)의
+     * 회귀 테스트. 위 10건 테스트보다 스레드 수를 4배로 늘려 같은 종류의 커넥션 폐기
+     * 도미노가 재발하지 않는지 확인한다 — 실패(예외)든 재시도 소진(ConflictException)이든
+     * 예외 없이 끝나야 하며(간접 확인), 무엇보다 이 테스트 자체가 예외 없이 통과해야 한다.
+     */
+    @Test
+    void 동일_리소스에_동시요청_40건이_와도_예외없이_처리된다() throws InterruptedException {
+        int concurrentRequests = 40;
+        Resource resource = resourceRepository.save(Resource.builder()
+                .name("high-concurrency-test-server")
+                .type(ResourceType.SERVER)
+                .build());
+
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentRequests);
+        CountDownLatch readyLatch = new CountDownLatch(concurrentRequests);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(concurrentRequests);
+        AtomicInteger failureCount = new AtomicInteger();
+
+        for (int i = 0; i < concurrentRequests; i++) {
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    startLatch.await();
+                    SimulateMetricRequest request = new SimulateMetricRequest(resource.getId(), 95.0, null, null, null);
+                    metricService.simulate(request);
+                } catch (Exception e) {
+                    failureCount.incrementAndGet();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        readyLatch.await(5, TimeUnit.SECONDS);
+        startLatch.countDown();
+        boolean completed = doneLatch.await(30, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        assertThat(completed).as("모든 스레드가 타임아웃 없이 완료돼야 함").isTrue();
+        assertThat(failureCount.get())
+                .as("JpaSystemException 등 커넥션 폐기 계열 예외가 재시도로 흡수돼 500으로 새면 안 됨")
+                .isZero();
+    }
 }
