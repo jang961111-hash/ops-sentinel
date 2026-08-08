@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * 기동 시 데모용 초기 데이터를 적재한다(US-012).
  *
  * <p>실제 서비스처럼 보이는 이름의 리소스 8개(4개 타입 골고루)와, 각 리소스당 정상범위
- * 지표 스냅샷을 1~2건씩 미리 넣어둬서 {@code ./gradlew bootRun} 직후 수동 조작 없이도
+ * 지표 스냅샷을 2건씩 미리 넣어둬서 {@code ./gradlew bootRun} 직후 수동 조작 없이도
  * {@code GET /api/resources} 등으로 바로 확인 가능한 상태를 만든다.
  *
  * <p>재기동 시 중복 삽입을 막기 위해 Resource 건수를 먼저 확인하고, 이미 데이터가
