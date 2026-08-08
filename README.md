@@ -148,7 +148,7 @@ LLM(OpenAI API)은 이 판단 자체를 바꾸지 않는다. 규칙엔진이 이
 1. 서버 실행 후 브라우저에서 `http://localhost:8080/h2-console` 접속
 2. JDBC URL: `jdbc:h2:mem:opssentinel` / Username: `sa` / Password: (공백)
 
-### (선택) Docker Compose로 한 번에 실행 — app + PostgreSQL
+### (선택, 검증됨) Docker Compose로 한 번에 실행 — app + PostgreSQL
 
 Gradle 로컬 실행 대신, PostgreSQL까지 포함해 컨테이너로 한 번에 띄우고 싶다면:
 
@@ -167,6 +167,7 @@ docker compose down
 - postgres 컨테이너의 healthcheck를 통과한 뒤에야 app이 기동된다(`depends_on: condition: service_healthy`).
 - 데이터는 `postgres-data` 볼륨에 영속화되어 `docker compose down` 후에도 유지된다(볼륨까지 지우려면 `docker compose down -v`).
 - 기동 후 접속 경로는 아래 Gradle 실행과 동일하다(`http://localhost:8080/...`).
+- US-024(2026-08-09) 재검증: `docker compose up -d --build`로 app+postgres 정상 기동, `GET /actuator/health`에서 `db` 컴포넌트가 `PostgreSQL`로, `incidentEngine`이 `UP`으로 확인됐다(최신 동시성 수정·HikariCP pool=60 반영 상태 기준).
 
 ### Swagger UI
 

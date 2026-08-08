@@ -236,7 +236,7 @@ function textPage({ num, title, subtitle, html, center }) {
     <h3 class="mini-h">JPA(CRUD) + MyBatis(집계) 역할 분리</h3>
     <p class="p">단건 CRUD·상태 전이·락이 필요한 조회(<code>SELECT ... FOR UPDATE</code>)는 Spring Data JPA로 처리한다(Resource/MetricSnapshot/Incident/IncidentAction/AuditLog 5개 엔티티). 여러 테이블을 JOIN하고 GROUP BY·CASE·AVG로 집계하는 통계성 조회(<code>/api/analytics/*</code>)는 MyBatis(<code>AnalyticsMapper.xml</code>)로 순수 SQL을 직접 작성한다. JPA로도 구현 가능하지만 다중 테이블 집계를 JPQL/Criteria로 억지로 표현하면 가독성이 떨어지고 실행계획을 예측하기 어려워지므로 역할을 명확히 나눴다.</p>
     <h3 class="mini-h">배포 결정</h3>
-    <p class="p">로컬 실행(Gradle) + 선택적 Docker Compose(app+PostgreSQL)까지만 지원한다. AWS EC2 등 실제 클라우드 배포는 하지 않았다 — 공식 제출 요구사항에 배포가 없고, 계정 생성·보안그룹·비용 관리 등 부가 작업이 마감 임박 상황에서 리스크 대비 실익이 없다고 판단했다(<code>docs/01_PRD_기획명세서_최종본.md</code> 3-1장).</p>`;
+    <p class="p">로컬 실행(Gradle) + 선택적 Docker Compose(app+PostgreSQL, 검증됨)까지만 지원한다. AWS EC2 등 실제 클라우드 배포는 하지 않았다 — 공식 제출 요구사항에 배포가 없고, 계정 생성·보안그룹·비용 관리 등 부가 작업이 마감 임박 상황에서 리스크 대비 실익이 없다고 판단했다(<code>docs/01_PRD_기획명세서_최종본.md</code> 3-1장).</p>`;
   textPage({ num: 2, title: '아키텍처 결정 (ADR)', subtitle: '왜 모듈러 모놀리식인가 — 대안과의 비교', html });
 }
 {
