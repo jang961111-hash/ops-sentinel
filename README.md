@@ -123,6 +123,26 @@ LLM(OpenAI API, P1 예정)은 이 판단 자체를 바꾸지 않는다. 규칙�
 1. 서버 실행 후 브라우저에서 `http://localhost:8080/h2-console` 접속
 2. JDBC URL: `jdbc:h2:mem:opssentinel` / Username: `sa` / Password: (공백)
 
+### (선택) Docker Compose로 한 번에 실행 — app + PostgreSQL
+
+Gradle 로컬 실행 대신, PostgreSQL까지 포함해 컨테이너로 한 번에 띄우고 싶다면:
+
+```bash
+# 1) 환경변수 파일 준비 (DB_PASSWORD 등 값 채우기)
+cp .env.example .env
+
+# 2) app(Dockerfile 빌드) + postgres 함께 기동
+docker compose up -d --build
+
+# 3) 종료
+docker compose down
+```
+
+- app 컨테이너는 `SPRING_PROFILES_ACTIVE=docker`로 뜨며 `application-docker.yml`(PostgreSQL 접속 설정)을 사용한다. 기본 프로필(H2)과는 완전히 분리되어 있어 `./gradlew test` 등 기존 H2 기반 테스트에는 영향이 없다.
+- postgres 컨테이너의 healthcheck를 통과한 뒤에야 app이 기동된다(`depends_on: condition: service_healthy`).
+- 데이터는 `postgres-data` 볼륨에 영속화되어 `docker compose down` 후에도 유지된다(볼륨까지 지우려면 `docker compose down -v`).
+- 기동 후 접속 경로는 아래 Gradle 실행과 동일하다(`http://localhost:8080/...`).
+
 ### Swagger UI
 
 `http://localhost:8080/swagger-ui/index.html` — 전체 API를 문서화된 형태로 확인하고 직접 호출해볼 수 있다.
