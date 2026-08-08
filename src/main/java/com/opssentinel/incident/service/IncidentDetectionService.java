@@ -42,6 +42,7 @@ public class IncidentDetectionService {
             List.of(IncidentStatus.DETECTED, IncidentStatus.ANALYZING);
 
     private final IncidentRuleEngine ruleEngine;
+    private final IncidentActionService incidentActionService;
     private final IncidentRepository incidentRepository;
     private final ResourceRepository resourceRepository;
     private final PlatformTransactionManager transactionManager;
@@ -92,6 +93,10 @@ public class IncidentDetectionService {
                     Incident saved = incidentRepository.save(incident);
                     log.info("Incident 생성: id={}, resourceId={}, rule={}, severity={}",
                             saved.getId(), resourceId, evaluation.ruleTriggered(), evaluation.severity());
+                    // 새로 생성된 Incident에 한해서만 조치를 결정·기록한다(US-005) — 이미
+                    // OPEN 사건이 있어 재사용하는 경우는 위 map 분기에서 처리돼 여기 들어오지
+                    // 않으며, 그 사건은 이미 최초 감지 시점에 조치가 기록돼 있을 것이다.
+                    incidentActionService.decideAndRecord(saved);
                     return saved;
                 });
     }
