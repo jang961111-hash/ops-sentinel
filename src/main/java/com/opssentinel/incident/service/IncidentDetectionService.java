@@ -1,5 +1,6 @@
 package com.opssentinel.incident.service;
 
+import com.opssentinel.audit.Auditable;
 import com.opssentinel.incident.entity.Incident;
 import com.opssentinel.incident.entity.IncidentStatus;
 import com.opssentinel.incident.repository.IncidentRepository;
@@ -51,6 +52,7 @@ public class IncidentDetectionService {
      * 지표 스냅샷을 규칙엔진으로 판정하고, 이상 감지 시 Incident를 생성(또는 이미 열린
      * 사건이 있으면 그것을 반환)한다. 정상 지표면 Optional.empty().
      */
+    @Auditable(action = "INCIDENT_DETECT", targetType = "Incident")
     public Optional<Incident> detectAndCreate(MetricSnapshot snapshot) {
         return ruleEngine.evaluate(snapshot)
                 .map(evaluation -> createIfAbsentWithRetry(snapshot.getResourceId(), evaluation));

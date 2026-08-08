@@ -1,5 +1,6 @@
 package com.opssentinel.incident.service;
 
+import com.opssentinel.audit.Auditable;
 import com.opssentinel.incident.entity.ActionType;
 import com.opssentinel.incident.entity.Incident;
 import com.opssentinel.incident.entity.IncidentAction;
@@ -49,6 +50,7 @@ public class IncidentActionService {
      * 트랜잭션 안에서 실행돼야 한다 — 조치 기록과 status 전이가 Incident 생성과 한
      * 트랜잭션으로 묶여야 원자성이 보장된다.
      */
+    @Auditable(action = "INCIDENT_ACTION_DECIDE", targetType = "Incident")
     public void decideAndRecord(Incident incident) {
         List<ActionType> actionTypes = decideActionTypes(incident.getSeverity(), incident.getRuleTriggered());
         for (ActionType actionType : actionTypes) {

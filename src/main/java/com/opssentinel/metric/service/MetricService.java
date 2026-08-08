@@ -1,5 +1,6 @@
 package com.opssentinel.metric.service;
 
+import com.opssentinel.audit.Auditable;
 import com.opssentinel.incident.service.IncidentDetectionService;
 import com.opssentinel.metric.entity.MetricSnapshot;
 import com.opssentinel.metric.repository.MetricSnapshotRepository;
@@ -76,6 +77,7 @@ public class MetricService {
      * 수동 지표 생성. 요청에 값이 지정된 필드는 그대로 사용하고(데모용 강제 임계치 초과 주입),
      * 미지정 필드는 랜덤 생성 로직으로 채운다.
      */
+    @Auditable(action = "METRIC_SIMULATE", targetType = "MetricSnapshot")
     public MetricSnapshot simulate(SimulateMetricRequest request) {
         Long resourceId = request.resourceId();
         if (!resourceRepository.existsById(resourceId)) {

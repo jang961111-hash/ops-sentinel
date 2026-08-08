@@ -12,6 +12,15 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+    hikari:
+      # US-006(AOP 감사로그) 도입 이후 필요해진 설정: IncidentActionService.decideAndRecord는
+      # Resource 비관적 락을 쥔 트랜잭션(TransactionTemplate) 안에서 호출되는데, 그 메서드에
+      # 붙은 @Auditable이 AuditLogRecorder.recordSuccess(REQUIRES_NEW)를 호출하면 Spring이
+      # 바깥 트랜잭션의 커넥션은 그대로 쥔 채로 감사로그 저장용 커넥션을 하나 더 풀에서
+      # 빌려간다. 기본 풀 크기(10)로는 동시요청 10건 테스트에서 "바깥 트랜잭션 대기 커넥션 +
+      # 락 보유 스레드의 REQUIRES_NEW 커넥션"이 겹쳐 풀이 고갈되고 락 대기가 타임아웃되는
+      # 현상이 실측됐다(IncidentDetectionConcurrencyTest). 여유를 두어 30으로 늘린다.
+      maximum-pool-size: 30
 
   h2:
     console:
