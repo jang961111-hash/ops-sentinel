@@ -43,4 +43,11 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// US-013: 셸에 OPENAI_API_KEY가 설정돼 있어도 테스트 JVM에는 전달하지 않는다.
+	// IncidentActionServiceTest 등 기존 통합테스트는 Incident 생성 경로를 그대로 타면서
+	// AiSummaryService.summarize()도 호출하는데, 실제 키가 새어 들어가면 매 빌드마다
+	// 불필요하게 과금되는 실제 OpenAI 호출이 반복되고 네트워크 상태에 따라 빌드가
+	// 느려지거나 흔들릴 수 있다. 키를 빈 값으로 고정해 항상 폴백 경로(빠르고 결정적)를
+	// 타게 만든다 — 이 자체가 폴백 동작에 대한 회귀 검증이 되기도 한다.
+	environment 'OPENAI_API_KEY', ''
 }
