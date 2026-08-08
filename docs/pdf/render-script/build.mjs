@@ -92,10 +92,10 @@ function textPage({ num, title, subtitle, html, center }) {
       <table class="cover-meta">
         <tr><td>소속</td><td>SKALA 4기 광주캠퍼스 광주 2반</td></tr>
         <tr><td>이름 / 고유번호</td><td>장병헌 (G062)</td></tr>
-        <tr><td>제출일</td><td>2026-08-09</td></tr>
+        <tr><td>제출일</td><td>2026-08-08</td></tr>
         <tr><td>저장소</td><td>github.com/jang961111-hash/ops-sentinel</td></tr>
         <tr><td>기술 스택</td><td>Spring Boot 3.3 · Java 21 · Gradle · JPA(CRUD) + MyBatis(집계) · H2(기본)/PostgreSQL(Docker) · OpenAI API(gpt-4o-mini) · JWT(jjwt) · springdoc-openapi(Swagger)</td></tr>
-        <tr><td>규모</td><td>엔드포인트 13개 · 테스트 45건(0 실패) · 이슈 17개(전체 CLOSED) · PR 21개(전체 MERGED) · 태그 12개</td></tr>
+        <tr><td>규모</td><td>엔드포인트 13개 · 테스트 45건(0 실패) · 이슈 17개(전체 CLOSED) · PR 24개(전체 MERGED, 표지 확정 시점 기준) · 태그 12개</td></tr>
       </table>
       <div class="cover-links">
         <div class="cover-links-title">바로가기 (전부 접속 확인 완료, HTTP 200)</div>
@@ -541,12 +541,12 @@ capturePage({
   verify: '이슈 개수 = 17개, 전부 CLOSED — 스프린트 P0(1~12) → P1(13~15) → P2(16~17) 순서와 04_일정관리.md의 스프린트 계획이 정확히 일치.',
 });
 capturePage({
-  num: 9, title: 'Git/협업 워크플로우 증빙', subtitle: 'GitHub PR 목록 — 21건 전체 MERGED',
+  num: 9, title: 'Git/협업 워크플로우 증빙', subtitle: 'GitHub PR 목록 — 24건 전체 MERGED (표지 확정 시점 기준)',
   cmd: `$ gh pr list --state merged --limit 30`,
   imageSrc: img('13-github-prs-merged.png'), imageAlt: 'PRs merged',
-  proves: '요구사항 "Git 워크플로우(PR 템플릿·머지 이력)"를 증명 — 이슈 대비 PR이 4건 더 많은 이유(architect 검증 후속 수정 PR #35~38)까지 추적 가능.',
-  read: 'PR #18~38까지 전부 MERGED, 브랜치명이 <code>feat/N-설명</code>·<code>fix/N-설명</code>·<code>docs/설명</code> 컨벤션을 따르는지 확인한다.',
-  verify: 'PR 개수 = 21개 전부 MERGED. 이슈(17개)보다 PR이 많은 이유는 P0~P2 기능 개발 PR 17개 외에 릴리스 이후 발견된 architect 검증 결함 수정(#36) + 정직성 정리(#37) + AI 슬롭 정리(#38) 등 이슈 없이 진행된 후속 PR이 추가됐기 때문(p.37 참고).',
+  proves: '요구사항 "Git 워크플로우(PR 템플릿·머지 이력)"를 증명 — 이슈 대비 PR이 7건 더 많은 이유(architect 검증 후속 수정 및 PDF 제출물 준비 PR #35~41)까지 추적 가능.',
+  read: 'PR #18~41까지 전부 MERGED, 브랜치명이 <code>feat/N-설명</code>·<code>fix/N-설명</code>·<code>docs/설명</code> 컨벤션을 따르는지 확인한다.',
+  verify: 'PR 개수 = 24개 전부 MERGED(이 페이지를 확정한 시점 기준 — 이 문서 자체를 만들고 제출하는 PR이 머지되면 개수가 다시 늘어나므로, 문서가 자기 자신의 최종 PR 번호까지 완벽히 예측할 수는 없는 구조적 한계를 정직하게 남긴다). 이슈(17개)보다 PR이 많은 이유는 P0~P2 기능 개발 PR 17개 외에 릴리스 이후 발견된 architect 검증 결함 수정(#36) + 정직성 정리(#37) + AI 슬롭 정리(#38) + PDF 캡처수집/조판/최종검증(#39~41) 등 이슈 없이 진행된 후속 PR이 추가됐기 때문(p.37 참고).',
 });
 capturePage({
   num: 9, title: 'Git/협업 워크플로우 증빙', subtitle: 'git log --oneline --graph -30 — 커밋 컨벤션',
@@ -633,7 +633,7 @@ capturePage({
 {
   const prs = fs.readFileSync(path.join(CAP, 'raw-logs/13-github-prs-merged.txt'), 'utf-8').trim();
   const html = `<pre class="cmd small appendix-log">${esc(prs)}</pre>`;
-  textPage({ num: '부록 B', title: '부록 — PR 원본 목록', subtitle: 'gh pr list --state merged 실제 출력 전문 (21건, 전체 MERGED)', html });
+  textPage({ num: '부록 B', title: '부록 — PR 원본 목록', subtitle: 'gh pr list --state merged 실제 출력 전문 (24건, 전체 MERGED — 표지 확정 시점 기준)', html });
 }
 {
   const html = `
