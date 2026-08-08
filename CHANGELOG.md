@@ -7,6 +7,7 @@
 ## [Unreleased]
 
 ### Added
+- Docker Compose(app+postgres) 원커맨드 기동 추가 — `Dockerfile`(Gradle 빌드 스테이지 → JRE 21 alpine 런타임 스테이지 멀티스테이지 빌드), `docker-compose.yml`(app+postgres 2개 서비스, postgres healthcheck 통과 후 app 기동), PostgreSQL 접속정보는 `application-docker.yml`이라는 별도 프로필로 분리해 기본 프로필(H2, `IncidentDetectionConcurrencyTest`용으로 튜닝된 LOCK_TIMEOUT/HikariCP 설정)에 영향 없음. `.env.example` 추가로 DB_PASSWORD/OPENAI_API_KEY/JWT_SECRET/ADMIN_PASSWORD 등을 커밋 없이 로컬 `.env`로만 주입 (#16)
 - JWT 최소 구현으로 관리자 전용 엔드포인트(`GET /api/audit-logs`, `PATCH /api/incidents/{id}/resolve`) 보호 — `POST /api/auth/token`(고정 admin 계정 검증, `admin.password` 프로퍼티)으로 토큰 발급, `JwtTokenProvider`(jjwt, `jwt.secret` 미설정 시 랜덤 키 생성)로 서명·검증, `JwtAuthenticationFilter`(`OncePerRequestFilter`)가 위 두 엔드포인트만 정확히 매칭해 `Authorization: Bearer` 헤더를 강제하고 실패 시 공통 에러 포맷(`{timestamp,status,error,message,path}`)으로 401 응답. Spring Security 풀스택 대신 jjwt+커스텀 필터를 택한 이유는 회원/역할 체계가 없는 이 프로젝트 스케일에 풀스택 도입이 과설계이기 때문(US-014) (#14)
 - Swagger UI에 JWT Bearer 토큰 입력 UI(Authorize 버튼) 노출 — `OpenApiConfig`로 `bearerAuth` 시큐리티 스키마 등록, 보호 대상 두 엔드포인트에만 `@SecurityRequirement` 적용 (#14)
 - `AiSummaryService` 추가 — OpenAI Chat Completions API(`gpt-4o-mini`, Spring 6 `RestClient` + `SimpleClientHttpRequestFactory` 타임아웃 3초)로 Incident 판단근거 자연어 요약(aiSummary)을 생성해 `IncidentActionService.decideAndRecord` 조치 결정 직후 채워 저장. `OPENAI_API_KEY` 미설정 시 네트워크 호출 자체를 건너뛰고, 호출 실패/타임아웃 시에도 예외를 흡수해 기본 템플릿 문장으로 대체하므로 연동 장애가 Incident 생성 흐름을 막지 않음(US-013) (#13)

@@ -1,0 +1,43 @@
+# US-016: `docker compose up -d --build` 한 번으로 app+postgres를 함께 기동한다.
+# 실제 비밀번호/키는 여기에 하드코딩하지 않고 .env 파일(gitignore 대상)에서만 읽는다.
+# .env.example을 복사해 .env를 만들고 값을 채운 뒤 실행할 것.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-opssentinel}
+      POSTGRES_USER: ${DB_USER:-opssentinel}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opssentinel} -d ${DB_NAME:-opssentinel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-opssentinel}
+      DB_USER: ${DB_USER:-opssentinel}
+      DB_PASSWORD: ${DB_PASSWORD}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

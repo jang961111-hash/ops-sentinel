@@ -1,0 +1,20 @@
+# US-016: Docker Compose(app+postgres)에서 SPRING_PROFILES_ACTIVE=docker로 활성화되는
+# PostgreSQL 접속 프로필. 기본 프로필(application.yml, H2)의 LOCK_TIMEOUT/HikariCP 튜닝값은
+# IncidentDetectionConcurrencyTest용으로 고정된 값이라 건드리지 않고, 별도 프로필로 분리했다.
+# 이 프로필은 docker-compose 환경에서만 쓰이므로 테스트에는 관여하지 않는다.
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:opssentinel}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:opssentinel}
+    password: ${DB_PASSWORD:}
+
+  jpa:
+    hibernate:
+      # H2 프로필과 동일하게 자동 스키마 생성(운영급 마이그레이션 도구 없이 로컬/데모 용도로 충분).
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect

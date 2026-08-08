@@ -43,6 +43,9 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	runtimeOnly 'com.h2database:h2'
+	// US-016: Docker Compose(app+postgres)의 `docker` 프로필 전용. 기본 프로필(테스트 포함)은
+	// 계속 H2를 쓰므로 이 의존성을 추가해도 기존 테스트 동작에는 영향이 없다.
+	runtimeOnly 'org.postgresql:postgresql'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
