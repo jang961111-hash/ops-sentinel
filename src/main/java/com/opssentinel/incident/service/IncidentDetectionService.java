@@ -14,8 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -65,14 +68,46 @@ public class IncidentDetectionService {
             try {
                 return transactionTemplate.execute(status -> createIfAbsent(resourceId, evaluation));
             } catch (PessimisticLockingFailureException | OptimisticLockingFailureException
-                    | DataIntegrityViolationException e) {
+                    | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
+                    | CannotCreateTransactionException e) {
+                // JpaSystemException/TransactionSystemException: H2가 락 타임아웃(HYT00)을
+                // 던지면 HikariCP가 그 커넥션을 커넥션 레벨 오류로 보고 폐기하는데,
+                // TransactionTemplate이 롤백을 시도하는 시점엔 이미 그 커넥션이 닫혀 있어
+                // "Unable to rollback against JDBC Connection"(원인: Connection is closed)
+                // 으로 원래 락 타임아웃 예외가 감싸져 버린다(architect 콜드스타트 채점 실측:
+                // 40건 동시요청 중 29건 500, AuditLog 0건 기록).
+                // CannotCreateTransactionException: 위 두 타입만 재시도 대상에 추가하고 직접
+                // 40건 동시요청으로 재검증하는 과정에서 추가로 실측된 동일 계열 증상 —
+                // 커넥션이 대거 폐기되는 순간 재시도가 다음 트랜잭션을 시작하려 해도
+                // "JDBC begin transaction failed: Connection is closed"로 트랜잭션 자체를
+                // 열지 못하는 경우가 있다. 근본 원인(HikariCP 커넥션 폐기 도미노)이 같으므로
+                // 함께 재시도 대상에 포함하지 않으면 여전히 500으로 샌다.
                 log.warn("Incident 생성 충돌 감지(resourceId={}, {}/{}번째 시도) - 재시도합니다: {}",
                         resourceId, attempt, MAX_RETRIES, e.getMessage());
             }
         }
-        return incidentRepository.findFirstByResourceIdAndStatusIn(resourceId, OPEN_STATUSES)
-                .orElseThrow(() -> new ConflictException(
-                        MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId + " Incident 생성/조회에 실패했습니다(동시성 충돌)"));
+        return findExistingOpenIncidentOrConflict(resourceId);
+    }
+
+    /**
+     * 재시도 루프를 다 소진한 뒤의 최종 폴백 조회. 이 조회 자체도 위와 같은 커넥션 폐기
+     * 도미노 한복판에서 실행될 수 있으므로(직접 재검증 중 실측: 재시도 3회가 전부 커넥션
+     * 오류로 실패한 직후 이 조회마저 JpaSystemException을 던져 결국 500으로 새는 사례가
+     * 있었다) 이 조회도 같은 예외 타입에 한해 별도로 감싸 ConflictException(409)으로
+     * 수렴시킨다 — 여기서는 더 재시도하지 않는다(이미 MAX_RETRIES회 시도했으므로).
+     */
+    private Incident findExistingOpenIncidentOrConflict(Long resourceId) {
+        try {
+            return incidentRepository.findFirstByResourceIdAndStatusIn(resourceId, OPEN_STATUSES)
+                    .orElseThrow(() -> new ConflictException(
+                            MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId + " Incident 생성/조회에 실패했습니다(동시성 충돌)"));
+        } catch (PessimisticLockingFailureException | OptimisticLockingFailureException
+                | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
+                | CannotCreateTransactionException e) {
+            throw new ConflictException(MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId
+                    + " Incident 생성/조회에 실패했습니다(동시성 충돌, 최종 폴백 조회도 커넥션 오류: "
+                    + e.getMessage() + ")");
+        }
     }
 
     /** 반드시 트랜잭션 안에서 호출돼야 한다 — 락은 트랜잭션 종료 시 해제된다. */
