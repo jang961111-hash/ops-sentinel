@@ -29,8 +29,11 @@ import org.hibernate.annotations.CreationTimestamp;
  * incident 도메인에 속하므로 조치 이력 조회(PRD: Incident 상세 = 조치이력 포함)를 위해
  * 양방향 @OneToMany/@ManyToOne 연관관계를 맺는다.
  *
- * <p>version 필드는 낙관적 락(@Version)으로, 동일 리소스에 대한 중복 사건 생성 방지
- * 동시성 제어(US-004)에서 사용할 예정이다.
+ * <p>version 필드는 낙관적 락(@Version)으로 동시 갱신 충돌을 감지한다. 다만 동일 리소스에
+ * 대한 중복 사건 생성 방지(US-004)는 이 필드가 아니라 {@code IncidentDetectionService}의
+ * Resource 비관적 락(SELECT ... FOR UPDATE)으로 처리한다 — 서로 다른 두 row를 두고 벌어지는
+ * check-then-act는 같은 row 갱신 충돌만 감지하는 낙관적 락으로 막을 수 없기 때문이다. 자세한
+ * 이유는 {@code IncidentDetectionService}의 클래스 주석 참고.
  */
 @Entity
 @Table(name = "incidents")
