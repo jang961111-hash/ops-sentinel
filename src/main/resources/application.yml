@@ -13,28 +13,14 @@ spring:
     username: sa
     password:
     hikari:
-      # US-006(AOP 감사로그) 도입 이후 필요해진 설정: IncidentActionService.decideAndRecord는
-      # Resource 비관적 락을 쥔 트랜잭션(TransactionTemplate) 안에서 호출되는데, 그 메서드에
-      # 붙은 @Auditable이 AuditLogRecorder.recordSuccess(REQUIRES_NEW)를 호출하면 Spring이
-      # 바깥 트랜잭션의 커넥션은 그대로 쥔 채로 감사로그 저장용 커넥션을 하나 더 풀에서
-      # 빌려간다. 기본 풀 크기(10)로는 동시요청 10건 테스트에서 "바깥 트랜잭션 대기 커넥션 +
-      # 락 보유 스레드의 REQUIRES_NEW 커넥션"이 겹쳐 풀이 고갈되고 락 대기가 타임아웃되는
-      # 현상이 실측됐다(IncidentDetectionConcurrencyTest). 여유를 두어 30으로 늘렸었다.
-      #
-      # 30 -> 60 추가 증설(2026-08-09, fix/23-concurrency-jpasystemexception): 40건 동시요청
-      # 재검증 중 직접 실측 — IncidentDetectionService의 재시도 catch 목록에
-      # JpaSystemException 등을 추가한 뒤에도, 동일 리소스에 40개 스레드가 동시에 몰리면
-      # 풀 크기 30에서는 "바깥 트랜잭션 커넥션 + REQUIRES_NEW 감사로그 커넥션"이 동시다발로
-      # 소모되면서 HikariCP가 커넥션을 무더기로 폐기하는 도미노가 여전히 발생했고, 하필 그
-      # 순간이 재시도가 소진돼 감사로그를 FAIL로 남겨야 하는 순간과 겹쳐 AuditLog의
-      # REQUIRES_NEW 트랜잭션마저 커넥션을 못 얻어(recordSafely가 조용히 흡수) 일부 요청의
-      # 감사로그가 통째로 유실되는 현상까지 있었다(요청 40건 중 최대 28건). 60으로 늘리자
-      # 동일한 40건 동시요청 재현에서 재시도/커넥션 폐기 자체가 더 이상 발생하지 않았고
-      # AuditLog 기록도 요청 수와 정확히 일치했다(4회 반복 재현, 회당 40/40 일치).
-      # 단, 요구사항 범위를 넘는 훨씬 높은 동시성(150건)까지 밀어붙이면 이 현상이 다시
-      # 재현될 수 있다는 것도 확인했다 — 근본적으로 "감사로그 자체도 커넥션이 필요하다"는
-      # 구조적 한계이지 이 증설로 무한정 해소되는 문제는 아니다. CHANGELOG 참고.
-      maximum-pool-size: 60
+      # HikariCP 기본값(10)으로 되돌렸다(2026-09, fix/lock-scope-and-audit).
+      # 이력: US-006 이후 10 -> 30, 2026-08-09 40건 동시요청 대응으로 30 -> 60까지 늘렸었다.
+      # 그러나 2026-09 재측정에서 증설은 문턱만 옮길 뿐이었다(풀 60에서도 150건이면 409 91~93건,
+      # 감사 38~39%). 원인은 풀 크기가 아니라 ① OSIV가 요청마다 커넥션을 응답 끝까지 쥔 것,
+      # ② 락을 쥔 트랜잭션 안의 감사(REQUIRES_NEW)가 커넥션을 하나 더 요구한 것,
+      # ③ 락 안의 OpenAI 호출이었다. 셋을 구조로 없앤 뒤 풀 10에서 같은 리소스 동시 150건도
+      # 201 450/450, 감사 450/450이었다(측정: 레포 밖 lock_experiment.py, 3라운드).
+      maximum-pool-size: 10
 
   h2:
     console:
