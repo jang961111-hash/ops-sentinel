@@ -86,7 +86,7 @@ class AiSummaryOutsideLockTest {
                 try {
                     start.await();
                     long t0 = System.nanoTime();
-                    // 나머지 지표는 안전값으로 고정해 CPU_EXCEEDED(HIGH) 하나만 트리거한다
+                    // 나머지 지표는 안전값으로 고정해 CPU_EXCEEDED 하나만 트리거한다
                     metricService.simulate(new SimulateMetricRequest(resource.getId(), 95.0, 0.0, 0.0, 0));
                     latenciesMs.add(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0));
                 } catch (Exception e) {
@@ -110,7 +110,7 @@ class AiSummaryOutsideLockTest {
         Incident incident = open.get(0);
         // 사건은 AI 응답을 기다리지 않고 폴백 문구로 먼저 생성된다(대시보드에 빈 요약이 뜨지 않게)
         assertThat(incident.getAiSummary()).isEqualTo(
-                "HIGH 등급의 CPU_EXCEEDED 이상이 감지되어 자동 조치가 실행되었습니다.");
+                incident.getSeverity() + " 등급의 CPU_EXCEEDED 이상이 감지되어 자동 조치가 실행되었습니다.");
 
         // 커밋 뒤 비동기로 AI 요약이 채워진다
         long deadline = System.currentTimeMillis() + AI_DELAY_MS + 5000;

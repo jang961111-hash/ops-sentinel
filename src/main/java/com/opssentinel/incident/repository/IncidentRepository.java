@@ -9,8 +9,10 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
 
@@ -46,4 +48,13 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
      */
     long countBySeverityAndStatusNotAndDetectedAtAfter(
             IncidentSeverity severity, IncidentStatus status, LocalDateTime detectedAtAfter);
+
+    /**
+     * 커밋 후 비동기로 만든 AI 요약을 저장한다(AiSummaryListener). 요약 한 칸만 바꾸는 짧은
+     * UPDATE라 엔티티를 다시 읽어 병합하지 않는다.
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE Incident i SET i.aiSummary = :summary WHERE i.id = :id")
+    int updateAiSummary(@Param("id") Long id, @Param("summary") String summary);
 }
