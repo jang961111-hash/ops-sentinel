@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
+import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -77,7 +78,7 @@ public class IncidentDetectionService {
                 return transactionTemplate.execute(status -> createIfAbsent(resourceId, evaluation));
             } catch (PessimisticLockingFailureException | OptimisticLockingFailureException
                     | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
-                    | CannotCreateTransactionException e) {
+                    | CannotCreateTransactionException | UnexpectedRollbackException e) {
                 // JpaSystemException/TransactionSystemException: H2가 락 타임아웃(HYT00)을
                 // 던지면 HikariCP가 그 커넥션을 커넥션 레벨 오류로 보고 폐기하는데,
                 // TransactionTemplate이 롤백을 시도하는 시점엔 이미 그 커넥션이 닫혀 있어
@@ -90,6 +91,9 @@ public class IncidentDetectionService {
                 // "JDBC begin transaction failed: Connection is closed"로 트랜잭션 자체를
                 // 열지 못하는 경우가 있다. 근본 원인(HikariCP 커넥션 폐기 도미노)이 같으므로
                 // 함께 재시도 대상에 포함하지 않으면 여전히 500으로 샌다.
+                // UnexpectedRollbackException: 락 트랜잭션 안의 감사 기록(INCIDENT_ACTION_DECIDE,
+                // 같은 트랜잭션에 참여)이 DB 오류로 실패하면 트랜잭션이 rollback-only가 돼 커밋에서
+                // 이 예외가 난다. 감사 실패가 사건 생성을 500으로 막지 않도록 재시도한다.
                 log.warn("Incident 생성 충돌 감지(resourceId={}, {}/{}번째 시도) - 재시도합니다: {}",
                         resourceId, attempt, MAX_RETRIES, e.getMessage());
             }
@@ -111,7 +115,7 @@ public class IncidentDetectionService {
                             MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId + " Incident 생성/조회에 실패했습니다(동시성 충돌)"));
         } catch (PessimisticLockingFailureException | OptimisticLockingFailureException
                 | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
-                | CannotCreateTransactionException e) {
+                | CannotCreateTransactionException | UnexpectedRollbackException e) {
             throw new ConflictException(MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId
                     + " Incident 생성/조회에 실패했습니다(동시성 충돌, 최종 폴백 조회도 커넥션 오류: "
                     + e.getMessage() + ")");
