@@ -45,6 +45,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class AuditLogAspect {
 
     private static final int SUMMARY_MAX_LENGTH = 1000;
+    /** AuditLog.errorMessage 컬럼 길이. 넘기면 INSERT가 실패해 FAIL 감사가 통째로 사라진다. */
+    private static final int ERROR_MESSAGE_MAX_LENGTH = 2000;
 
     private final AuditLogRecorder auditLogRecorder;
 
@@ -67,8 +69,9 @@ public class AuditLogAspect {
             return result;
         } catch (Throwable ex) {
             Long targetId = extractTargetId(null, args);
+            String errorMessage = truncate(ex.getMessage(), ERROR_MESSAGE_MAX_LENGTH);
             Runnable recordFailure = () -> recordSafely(() -> auditLogRecorder.recordFailure(auditable.actorType(),
-                    auditable.action(), auditable.targetType(), targetId, requestSummary, ex.getMessage()));
+                    auditable.action(), auditable.targetType(), targetId, requestSummary, errorMessage));
             if (inTransaction && TransactionSynchronizationManager.isSynchronizationActive()) {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override
@@ -108,8 +111,11 @@ public class AuditLogAspect {
         if (args == null || args.length == 0) {
             return "";
         }
-        String summary = Arrays.toString(args);
-        return summary.length() > SUMMARY_MAX_LENGTH ? summary.substring(0, SUMMARY_MAX_LENGTH) : summary;
+        return truncate(Arrays.toString(args), SUMMARY_MAX_LENGTH);
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value != null && value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 
     /**
