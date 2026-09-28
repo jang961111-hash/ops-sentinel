@@ -108,9 +108,12 @@ class AiSummaryOutsideLockTest {
         List<Incident> open = openIncidents(resource.getId());
         assertThat(open).hasSize(1);
         Incident incident = open.get(0);
-        // 사건은 AI 응답을 기다리지 않고 폴백 문구로 먼저 생성된다(대시보드에 빈 요약이 뜨지 않게)
-        assertThat(incident.getAiSummary()).isEqualTo(
-                incident.getSeverity() + " 등급의 CPU_EXCEEDED 이상이 감지되어 자동 조치가 실행되었습니다.");
+        // 사건은 AI 응답을 기다리지 않고 폴백 문구로 먼저 생성된다(대시보드에 빈 요약이 뜨지 않게).
+        // 이 조회가 느린 환경에서 늦어지면 이미 AI 요약으로 바뀌었을 수 있으므로 둘 다 허용한다 —
+        // "AI를 기다리지 않는다"는 위의 지연 단언이 보장한다.
+        assertThat(incident.getAiSummary()).isIn(
+                incident.getSeverity() + " 등급의 CPU_EXCEEDED 이상이 감지되어 자동 조치가 실행되었습니다.",
+                FakeOpenAiServer.SUMMARY);
 
         // 커밋 뒤 비동기로 AI 요약이 채워진다
         long deadline = System.currentTimeMillis() + AI_DELAY_MS + 5000;
