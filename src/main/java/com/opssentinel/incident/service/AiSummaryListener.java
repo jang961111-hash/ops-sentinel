@@ -2,9 +2,10 @@ package com.opssentinel.incident.service;
 
 import com.opssentinel.common.config.AsyncConfig;
 import com.opssentinel.incident.repository.IncidentRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -23,18 +24,32 @@ import org.springframework.transaction.event.TransactionalEventListener;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AiSummaryListener {
 
     private final AiSummaryService aiSummaryService;
     private final IncidentRepository incidentRepository;
+    private final ThreadPoolTaskExecutor executor;
 
-    @Async(AsyncConfig.AI_SUMMARY_EXECUTOR)
+    public AiSummaryListener(AiSummaryService aiSummaryService, IncidentRepository incidentRepository,
+            @Qualifier(AsyncConfig.AI_SUMMARY_EXECUTOR) ThreadPoolTaskExecutor executor) {
+        this.aiSummaryService = aiSummaryService;
+        this.incidentRepository = incidentRepository;
+        this.executor = executor;
+    }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onIncidentCreated(IncidentCreatedEvent event) {
         if (!aiSummaryService.isEnabled()) {
             return; // 키가 없으면 커밋된 폴백 문구가 최종 요약이다
         }
+        try {
+            executor.execute(() -> summarize(event));
+        } catch (TaskRejectedException e) {
+            log.warn("AI 요약 큐가 가득 차 요약을 건너뜁니다(incidentId={}, 폴백 문구 유지)", event.incidentId());
+        }
+    }
+
+    private void summarize(IncidentCreatedEvent event) {
         incidentRepository.findById(event.incidentId()).ifPresent(incident -> {
             String summary = aiSummaryService.summarize(incident, event.actionTypes());
             incidentRepository.updateAiSummary(incident.getId(), summary);
