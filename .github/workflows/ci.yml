@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test + JaCoCo
+        run: ./gradlew test jacocoTestReport --console=plain
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET, os
+          p = 'build/reports/jacoco/test/jacocoTestReport.xml'
+          if not os.path.exists(p):
+              print('JaCoCo report not found'); raise SystemExit
+          root = ET.parse(p).getroot()
+          print('| counter | covered | total | % |'); print('|---|---|---|---|')
+          for c in root.findall('counter'):
+              m, cv = int(c.get('missed')), int(c.get('covered'))
+              print(f"| {c.get('type')} | {cv} | {m+cv} | {100*cv/(m+cv):.1f} |")
+          PY
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-and-coverage-reports
+          path: |
+            build/reports/tests/test
+            build/reports/jacoco/test
+          retention-days: 14
