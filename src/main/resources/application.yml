@@ -76,8 +76,11 @@ management:
 # 쓴다 — 연동 자체가 optional이라 이 프로퍼티가 없어도 앱은 정상 동작한다. timeout-ms는
 # Spring Boot 환경변수 완화 바인딩(relaxed binding) 규칙에 따라 OPENAI_TIMEOUT_MS
 # 환경변수로도 재정의할 수 있다(예: 타임아웃 동작 검증 시 일시적으로 짧게 설정).
+# base-url은 Chat Completions 경로(/chat/completions) 앞부분이다. 기본값은 실제 OpenAI이고,
+# 테스트(로컬 가짜 서버로 지연 주입)·프록시·호환 공급자용으로 OPENAI_BASE_URL로 바꿀 수 있다.
 openai:
   api-key: ${OPENAI_API_KEY:}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
   model: gpt-4o-mini
   timeout-ms: 3000
 

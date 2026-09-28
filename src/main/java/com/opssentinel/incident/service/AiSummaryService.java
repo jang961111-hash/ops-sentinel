@@ -6,6 +6,7 @@ import com.opssentinel.incident.entity.ActionType;
 import com.opssentinel.incident.entity.Incident;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -34,16 +35,23 @@ import org.springframework.web.client.RestClient;
 @Service
 public class AiSummaryService {
 
-    private static final String CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
+    /**
+     * 기본값은 실제 OpenAI 엔드포인트다. 테스트·측정에서는 로컬 가짜 서버(지연 주입 등)로,
+     * 운영에서는 프록시·호환 공급자로 바꿀 수 있도록 {@code openai.base-url}로 덮어쓸 수 있게 했다.
+     */
+    static final String DEFAULT_BASE_URL = "https://api.openai.com/v1";
+    private static final String CHAT_COMPLETIONS_PATH = "/chat/completions";
 
     private final String apiKey;
     private final String model;
     private final RestClient restClient;
 
+    @Autowired
     public AiSummaryService(
             @Value("${openai.api-key:}") String apiKey,
             @Value("${openai.model:gpt-4o-mini}") String model,
-            @Value("${openai.timeout-ms:3000}") int timeoutMs) {
+            @Value("${openai.timeout-ms:3000}") int timeoutMs,
+            @Value("${openai.base-url:" + DEFAULT_BASE_URL + "}") String baseUrl) {
         this.apiKey = apiKey;
         this.model = model;
 
@@ -52,9 +60,14 @@ public class AiSummaryService {
         requestFactory.setReadTimeout(timeoutMs);
 
         this.restClient = RestClient.builder()
-                .baseUrl(CHAT_COMPLETIONS_URL)
+                .baseUrl(baseUrl + CHAT_COMPLETIONS_PATH)
                 .requestFactory(requestFactory)
                 .build();
+    }
+
+    /** 기존 호출부(단위 테스트 등) 호환용: base-url은 기본값(실제 OpenAI)을 쓴다. */
+    public AiSummaryService(String apiKey, String model, int timeoutMs) {
+        this(apiKey, model, timeoutMs, DEFAULT_BASE_URL);
     }
 
     /**
