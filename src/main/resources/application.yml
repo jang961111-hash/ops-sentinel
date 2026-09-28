@@ -42,6 +42,13 @@ spring:
       path: /h2-console
 
   jpa:
+    # OSIV(open-in-view)를 끈다. 켜 두면 요청 스레드가 처음 쿼리한 커넥션을 응답이 끝날 때까지
+    # 쥐고 있어(Spring의 DELAYED_ACQUISITION_AND_HOLD), 락 대기 요청 N건이 풀 N개를 그대로 점유한다.
+    # 또 H2 락 타임아웃으로 그 커넥션이 폐기되면 같은 요청의 재시도·감사로그가 모두 닫힌 커넥션을
+    # 다시 써서 "JDBC begin transaction failed: Connection is closed"로 실패했다(2026-09 재측정:
+    # 409 요청마다 재시도 3회·감사 2건 전부 실패 → FAIL 감사 0건). 컨트롤러는 fetch join으로
+    # 필요한 연관을 미리 읽으므로 뷰 단계 지연 로딩이 필요 없다.
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: true
