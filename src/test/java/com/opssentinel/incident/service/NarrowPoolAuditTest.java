@@ -178,6 +178,34 @@ class NarrowPoolAuditTest {
         assertThat(detectFails.get(0).getErrorMessage()).contains("재시도");
     }
 
+    @Test
+    void 이미_OPEN_사건이_있으면_락을_기다리지_않고_바로_응답한다() throws Exception {
+        Resource resource = newResource("narrow-pool-fast-path");
+        assertThat(simulate(resource.getId(), "95.00789")).isEqualTo(201);
+
+        // 다른 트랜잭션이 Resource 락을 3초 쥔 동안 같은 리소스로 다시 요청한다
+        CountDownLatch locked = new CountDownLatch(1);
+        Thread holder = new Thread(() -> new TransactionTemplate(transactionManager).executeWithoutResult(s -> {
+            resourceRepository.lockById(resource.getId()).orElseThrow();
+            locked.countDown();
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }));
+        holder.start();
+        assertThat(locked.await(5, TimeUnit.SECONDS)).isTrue();
+
+        long t0 = System.nanoTime();
+        int status = simulate(resource.getId(), "95.00790");
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+        holder.join();
+
+        assertThat(status).isEqualTo(201);
+        assertThat(elapsedMs).as("락 없는 사전 조회로 기존 사건을 바로 돌려줘야 한다").isLessThan(1000);
+    }
+
     private Resource newResource(String name) {
         return resourceRepository.save(Resource.builder().name(name).type(ResourceType.SERVER).build());
     }

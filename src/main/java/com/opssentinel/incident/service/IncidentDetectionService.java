@@ -63,6 +63,14 @@ public class IncidentDetectionService {
     }
 
     private Incident createIfAbsentWithRetry(Long resourceId, RuleEvaluation evaluation) {
+        // 락 없는 사전 조회(fast path): 이미 OPEN 사건이 있으면 락을 잡지 않고 바로 돌려준다.
+        // 같은 리소스로 몰린 요청 대부분은 첫 요청이 사건을 만든 뒤에 도착하므로 락 대기에서
+        // 빠진다. 없을 때만 아래에서 락을 잡고 다시 확인한다(double-checked) — 사전 조회와 락
+        // 사이에 다른 요청이 사건을 만들어도 락 안의 재확인이 중복 생성을 막는다.
+        Optional<Incident> alreadyOpen = incidentRepository.findFirstByResourceIdAndStatusIn(resourceId, OPEN_STATUSES);
+        if (alreadyOpen.isPresent()) {
+            return alreadyOpen.get();
+        }
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
