@@ -50,9 +50,14 @@ public class AiSummaryListener {
     }
 
     private void summarize(IncidentCreatedEvent event) {
-        incidentRepository.findById(event.incidentId()).ifPresent(incident -> {
-            String summary = aiSummaryService.summarize(incident, event.actionTypes());
-            incidentRepository.updateAiSummary(incident.getId(), summary);
-        });
+        // executor.execute로 넘긴 작업의 예외는 slf4j 로그에 남지 않으므로 여기서 직접 남긴다
+        try {
+            incidentRepository.findById(event.incidentId()).ifPresent(incident -> {
+                String summary = aiSummaryService.summarize(incident, event.actionTypes());
+                incidentRepository.updateAiSummary(incident.getId(), summary);
+            });
+        } catch (RuntimeException e) {
+            log.error("AI 요약 저장 실패(incidentId={}, 폴백 문구 유지)", event.incidentId(), e);
+        }
     }
 }

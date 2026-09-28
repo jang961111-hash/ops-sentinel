@@ -117,7 +117,7 @@ public class IncidentDetectionService {
                 | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
                 | CannotCreateTransactionException | UnexpectedRollbackException e) {
             throw new ConflictException(MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId
-                    + " Incident 생성/조회에 실패했습니다(동시성 충돌, 최종 폴백 조회도 커넥션 오류: "
+                    + " Incident 생성/조회에 실패했습니다(동시성 충돌, 최종 폴백 조회도 실패: "
                     + e.getMessage() + ")");
         }
     }
