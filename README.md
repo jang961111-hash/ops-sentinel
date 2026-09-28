@@ -2,15 +2,16 @@
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-6DB33F?logo=springboot&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-46%20passed-brightgreen)
+[![CI](https://github.com/jang961111-hash/ops-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/jang961111-hash/ops-sentinel/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
 ![License](https://img.shields.io/badge/license-education%20use%20only-lightgrey)
 
 ## 프로젝트 최종 상태 (2026-08-09)
 
 - **스토리 25개(US-001~US-025) 전부 완료** — P0(MVP)~P2(부가 기능) 기능 스토리 17개에 이어, 독립검증 대응·PDF 제출·콜드스타트 채점 대응·포트폴리오 정리로 이어지는 문서/검증 스토리 8개까지 모두 마쳤다.
 - **독립 architect(Opus) 검증 통과** — 1차 검증에서 감사로그 무결성·예외처리·MyBatis DB 호환성 결함 5건(C1~C5)으로 REJECTED 판정을 받았다. 전부 실제로 재현한 뒤 수정하고 재검증을 받아 APPROVED로 뒤집었다(`CHANGELOG.md`의 `[1.0.1]` 참고).
-- **콜드스타트 채점 시뮬레이션에서 발견된 동시성 버그를 완전히 해결** — 사전지식 없는 별도 에이전트가 실제로 제출용 zip을 풀고 서버를 띄워 채점하는 과정에서, 동일 리소스에 40건이 동시 요청되면 H2 락 타임아웃이 `JpaSystemException`으로 감싸져 재시도 목록을 벗어나 500 에러로 새는 결함을 발견했다. 근본원인까지 추적해 재시도 예외 목록을 보강하고 HikariCP 커넥션 풀을 30→60으로 늘려 해결했다(`CHANGELOG.md`의 `[1.0.2]` 참고).
-- **40건 동시요청 3회 반복 재현으로 무손실 확인** — 수정 후 재검증에서 매회 500 0건·201 40건, 감사로그 기록도 매회 40/40 정확히 일치했다(3회 합산 120/120건, 유실 0건).
+- **콜드스타트 채점 시뮬레이션에서 발견된 동시성 버그를 완전히 해결** — 사전지식 없는 별도 에이전트가 실제로 제출용 zip을 풀고 서버를 띄워 채점하는 과정에서, 동일 리소스에 40건이 동시 요청되면 H2 락 타임아웃이 `JpaSystemException`으로 감싸져 재시도 목록을 벗어나 500 에러로 새는 결함을 발견했다. 재시도 예외 목록을 보강하고 HikariCP 커넥션 풀을 30→60으로 늘려 당시 조건(40건)에서는 해결했다(`CHANGELOG.md`의 `[1.0.2]` 참고). 단, 2026-09 재측정에서 풀 증설은 문턱만 옮긴 증상 완화로 드러났다(풀 60에서도 150건이면 붕괴). 이후 락 구간을 구조적으로 고쳐 풀을 기본값 10으로 되돌렸다(7·8장).
+- **40건 동시요청 3회 반복 재현(풀 60)** — 당시 재검증에서 매회 500 0건·201 40건, 감사로그 40/40이었다(3회 합산 120/120). 2026-09 재측정에서도 같은 조건은 재현됐지만, **동시 150건에서는 409가 91건 나고 감사로그가 38~39%만 남아(FAIL 기록 0건) "무손실"은 40건 조건에 한정된 주장이었다.** 구조 수정 후에는 풀 10·동시 150건에서도 201 450/450, 감사 450/450이다(2026-09 재측정, 3라운드, 측정 방법은 PR 본문).
 - **Docker Compose(app+PostgreSQL) 실제 기동 검증 완료** — `docker compose up -d --build`로 컨테이너를 띄운 뒤 `/actuator/health`에서 `db` 컴포넌트가 `PostgreSQL`로 확인되는 것까지 실측했다.
 
 > 가상 인프라 지표를 감시하다가 이상을 감지하면 스스로 사건을 생성·심각도 판정·조치기록·AI 요약까지 수행하고, 모든 과정을 감사 가능하게 남기는 백엔드 API
@@ -110,7 +111,7 @@ src/main/java/com/opssentinel
   |                        |                       |                        | -> 조치(Action) 자동기록|
   |                        |                       |                        |                        |
   |                        |                       |          모든 단계  --------------------------->| AuditLog 기록
-  |                        |                       |          (성공/실패 무관, REQUIRES_NEW)          | (SUCCESS/FAIL)
+  |                        |                       |          (성공/실패 무관)                        | (SUCCESS/FAIL)
   |                        |                       |                        |                        |
   | GET /api/incidents/{id} 조회 (조치이력 포함) <----------------------------                        |
   | PATCH /resolve 처리 ------------------------------------------------->|                        |
@@ -120,8 +121,8 @@ src/main/java/com/opssentinel
 2. `@Scheduled(fixedRate=7000)` 스케줄러가 등록된 리소스 전체에 랜덤 지표(CPU/메모리/에러율/큐길이)를 생성한다. 약 10% 확률로 임계치를 넘는 이상치를 섞어 규칙엔진이 자연스럽게 트리거되도록 했다. `POST /api/metrics/simulate`로 수동 트리거도 가능하다(데모용).
 3. `IncidentRuleEngine`이 지표를 검사해 임계치 초과 여부와 심각도를 판정하고, `IncidentDetectionService`가 Resource 행에 비관적 락을 건 뒤 중복 여부를 확인해 `Incident`를 생성한다.
 4. `IncidentActionService`가 심각도와 트리거된 규칙에 따라 조치(MONITOR/ALERT/RESTART/BACKUP/ESCALATE 조합)를 자동 결정·기록하고 상태를 `DETECTED → ANALYZING`으로 전이한다.
-5. `AiSummaryService`가 OpenAI API(`gpt-4o-mini`)로 "왜 이 조치를 했는지" 1~2문장 자연어 요약을 생성해 `aiSummary`에 저장한다. `OPENAI_API_KEY`가 없거나 호출이 실패/타임아웃(3초)되면 예외를 흡수하고 기본 템플릿 문장으로 대체해 전체 흐름을 막지 않는다.
-6. 위 모든 단계는 `@Auditable` + AOP `@Around`가 가로채 `AuditLog`에 성공/실패 여부와 함께 100% 기록한다.
+5. 사건은 먼저 기본 템플릿 문장을 `aiSummary`에 담아 커밋된다. 커밋 뒤 `AiSummaryListener`가 전용 스레드풀에서 `AiSummaryService`로 OpenAI API(`gpt-4o-mini`)를 호출해 "왜 이 조치를 했는지" 1~2문장 요약으로 바꿔 쓴다. AI 호출은 락·트랜잭션 밖에서 일어나므로 응답이 느려도 사건 생성 요청은 기다리지 않는다. `OPENAI_API_KEY`가 없거나 호출이 실패하거나 타임아웃(연결·읽기 각 3초, 최악 약 6초)되면 기본 템플릿 문장이 그대로 남는다.
+6. 위 단계(지표 입력·사건 판정·조치 결정·해결 처리)는 `@Auditable` + AOP `@Around`가 가로채 `AuditLog`에 성공/실패 여부와 함께 기록한다. 스케줄러의 지표 생성 자체는 감사 대상이 아니다. 같은 리소스 동시 150건(풀 10)에서 METRIC_SIMULATE 감사가 요청 수와 일치했다(2026-09 재측정). 수정 전에는 같은 부하(풀 60)에서 38~39%만 남았다.
 7. 운영자는 `GET /api/incidents`, `GET /api/incidents/{id}`, `GET /api/analytics/*`로 사건과 통계를 조회하고, 처리가 끝난 사건은 `PATCH /api/incidents/{id}/resolve`로 종료 처리한다(재해결 요청은 멱등하게 무시되어 최초 resolvedAt이 유지된다). 이 두 관리자 전용 엔드포인트(`GET /api/audit-logs`, `PATCH /api/incidents/{id}/resolve`)는 `POST /api/auth/token`으로 발급받은 JWT(`Authorization: Bearer`)가 있어야 호출할 수 있다.
 
 ## 4. 판단(규칙엔진) vs 설명(LLM) 역할 분리
@@ -130,7 +131,7 @@ src/main/java/com/opssentinel
 
 이 프로젝트에서 **"판단"은 전적으로 규칙 기반 엔진(`IncidentRuleEngine`)이 담당한다.** 지표가 임계치(예: 에러율 5% 이상, CPU 90% 이상)를 넘었는지, 심각도를 LOW/MEDIUM/HIGH/CRITICAL 중 무엇으로 매길지, 어떤 조치(MONITOR/ALERT/RESTART/BACKUP/ESCALATE)를 취할지는 모두 if-else 기반 규칙으로 결정되며 결정론적이고 재현 가능하다.
 
-LLM(OpenAI API)은 이 판단 자체를 바꾸지 않는다. 규칙엔진이 이미 내린 결정을 사람이 읽기 쉬운 자연어 1~2문장으로 사후 설명하는 역할만 맡으며, API 호출이 실패하거나 타임아웃(3초)이 발생해도 미리 정의한 폴백 문장으로 대체되어 전체 흐름을 막지 않는다.
+LLM(OpenAI API)은 이 판단 자체를 바꾸지 않는다. 규칙엔진이 이미 내린 결정을 사람이 읽기 쉬운 자연어 1~2문장으로 사후 설명하는 역할만 맡으며, 사건이 커밋된 뒤 비동기로 호출된다. API 호출이 실패하거나 타임아웃(연결·읽기 각 3초)이 발생하면 미리 저장해 둔 폴백 문장이 그대로 남아 전체 흐름을 막지 않는다.
 
 이렇게 역할을 나눈 이유는 "이게 진짜 AI냐"는 과장 논란을 피하기 위해서다. 판단 로직을 LLM에 맡기면 설명력과 재현성이 떨어지고 테스트도 어려워진다. FINOS(Fintech Open Source Foundation)의 AI 거버넌스 프레임워크가 제시하는 감사 요구사항 중 "Tier 2: 명시적 추론이 도구 호출 전에 생성·기록되어야 하며 자연어 설명을 포함해야 한다"는 원칙과도 맞닿아 있다. 즉 규칙엔진의 결정(Decision)이 먼저이고, LLM의 설명(Explanation)은 그 뒤를 따르는 부가 정보라는 순서를 지킨다.
 
@@ -279,6 +280,8 @@ CRITICAL 등급의 미해결 사건이 있으면 `incidentEngine` 컴포넌트�
 
 `IncidentDetectionService`는 이 임계구간을 **동일 `resourceId`의 `Resource` 행에 대한 비관적 락(`SELECT ... FOR UPDATE`)**으로 직렬화해서 막는다. 락을 획득한 스레드만 "OPEN 사건 조회 → 없으면 생성"을 수행하고, 나머지 스레드는 락이 풀릴 때까지 대기했다가 순차적으로 같은 검사를 반복하므로 중복 생성이 발생하지 않는다. 락 타임아웃 등 예외 상황에 대비해 최대 3회까지 재시도하며, 재시도가 모두 소진되면 `ConflictException`(409)으로 응답한다.
 
+락 구간은 DB 작업(조회·생성·조치 기록)만 담도록 짧게 유지한다. 락을 잡기 전에 락 없이 OPEN 사건을 먼저 조회해, 이미 있으면 락을 타지 않고 바로 돌려준다(없을 때만 락 안에서 다시 확인하는 double-checked 방식). AI 요약 호출은 커밋 뒤 비동기로 뺐다. 예전에는 AI 호출이 락 안에 있어서, AI 응답이 3초 걸리면 같은 리소스 20건이 전부 3.05초를 기다렸다(2026-09 재측정).
+
 애초 계획은 `Incident.version` 필드를 이용한 낙관적 락이었지만, 다음 이유로 비관적 락으로 전환했다.
 - H2가 부분 unique 인덱스(`resourceId + status=OPEN`)를 지원하지 않아 DB 제약만으로는 중복을 막을 수 없었다.
 - `Incident.version`에 거는 낙관적 락은 이미 존재하는 같은 row를 다시 쓸 때만 충돌을 감지할 뿐, **서로 다른 두 개의 새 row가 동시에 insert되는 상황 자체는 막지 못한다** — 애초에 검사 시점에 "OPEN 사건이 없다"고 두 스레드가 동시에 판단하기 때문이다.
@@ -297,10 +300,11 @@ CRITICAL 등급의 미해결 사건이 있으면 `incidentEngine` 컴포넌트�
 
 - `@Auditable`이 붙은 메서드(`MetricService.simulate`, `IncidentDetectionService.detectAndCreate`, `IncidentActionService.decideAndRecord`, `IncidentQueryService.resolve`)의 호출을 `AuditLogAspect`가 가로챈다.
 - 대상 메서드가 정상 반환하면 `AuditLogRecorder.recordSuccess(...)`를, 예외를 던지면 `recordFailure(...)`를 호출해 `AuditLog`를 저장한다. 이때 원래 예외는 그대로 다시 던져(rethrow) 호출자(컨트롤러 등)의 정상적인 에러 처리 흐름을 막지 않는다. `AuditLogAspect`가 이 호출 자체를 try-catch로 한 번 더 감싸므로, 감사로그 저장(REQUIRES_NEW 트랜잭션)이 커넥션풀 고갈 등으로 자체 실패하더라도 그 실패가 원래 예외를 덮어쓰고 대신 전파되는 일은 없다 — 감사기록 실패는 로그로만 남고 원래 처리 결과가 그대로 클라이언트까지 간다.
-- `AuditLogRecorder`는 `@Transactional(propagation = REQUIRES_NEW)`로 **별도의 새 트랜잭션**에서 동작한다. 대상 메서드가 속한 원래 트랜잭션이 실패해서 롤백되더라도, 감사로그 저장은 이미 커밋된 별도 트랜잭션이므로 롤백되지 않고 남는다 — "처리 로직 자체가 실패해도 감사로그는 남아야 한다"는 요구사항을 만족시키는 핵심 장치다.
+- 트랜잭션 밖에서 호출된 메서드(`MetricService.simulate`, `IncidentDetectionService.detectAndCreate`)의 기록은 `@Transactional(propagation = REQUIRES_NEW)`로 **별도의 새 트랜잭션**에서 저장한다. 처리 로직이 실패해 롤백되더라도 감사로그는 남는다.
+- 비관적 락을 쥔 트랜잭션 안에서 호출되는 `IncidentActionService.decideAndRecord`의 성공 기록은 **같은 트랜잭션**에 넣는다. REQUIRES_NEW로 커넥션을 하나 더 빌리면, 락 대기 요청들이 풀을 다 쥐었을 때 락 보유 스레드가 멈추는 교착이 생겼기 때문이다(2026-09 재측정). 대신 이 기록은 사건·조치 행과 함께 커밋되거나 함께 롤백된다. 트랜잭션 안의 실패 기록은 롤백이 끝난 뒤(락 해제 후) 별도 트랜잭션으로 남긴다.
 - targetId는 대상 메서드의 반환값에서 우선 추출하되, 반환 타입이 `Optional`이면 그 값을 있는 그대로 존중한다 — `Optional.empty()`(예: 정상 지표라 Incident를 생성하지 않은 경우)는 "타겟이 없다"는 확정적인 신호이므로 targetId를 `null`로 남기고, 호출 인자로 되돌아가 엉뚱한 다른 엔티티의 id를 잘못 채워 넣지 않는다(예: 존재하지도 않는 Incident id를 가리키는 감사로그가 남는 문제 방지). Optional이 아닌 반환값(예: void 메서드)에서만 인자에서 id를 보조적으로 찾는다.
 
-부가로, 이 REQUIRES_NEW 트랜잭션이 비관적 락을 보유한 스레드에서 커넥션을 하나 더 요구한다는 점이 동시성 테스트 과정에서 드러나, HikariCP `maximum-pool-size`를 기본값(10)에서 30으로 상향 조정했다(`application.yml` 참고).
+커넥션 풀 크기 이력: 락 보유 스레드의 REQUIRES_NEW 추가 커넥션 때문에 10→30(US-006), 40건 동시요청 대응으로 30→60(2026-08-09)까지 늘렸다. 2026-09에 원인(OSIV의 요청 단위 커넥션 점유, 락 안 REQUIRES_NEW, 락 안 AI 호출)을 구조로 없애고 기본값 10으로 되돌렸다(`application.yml` 주석 참고).
 
 ## 9. 현재 진행 상태
 
