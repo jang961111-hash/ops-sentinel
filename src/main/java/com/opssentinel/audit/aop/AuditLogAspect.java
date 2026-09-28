@@ -10,10 +10,22 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * {@link Auditable}이 붙은 public 메서드 호출을 가로채 성공/실패 여부를 AuditLog에
- * 100% 기록한다(PRD 3장-4번).
+ * 기록한다(PRD 3장-4번).
+ *
+ * <p><b>호출 시점에 트랜잭션이 열려 있는지에 따라 기록 방식을 나눈다:</b>
+ * <ul>
+ *   <li>트랜잭션 밖(METRIC_SIMULATE, INCIDENT_DETECT): 성공·실패 모두 REQUIRES_NEW로 즉시 기록.
+ *       이때 요청 스레드는 커넥션을 쥐고 있지 않으므로(OSIV 끔) 커넥션을 하나만 쓴다.</li>
+ *   <li>트랜잭션 안의 성공(INCIDENT_ACTION_DECIDE 등): 같은 트랜잭션에 넣는다. 락 보유
+ *       스레드가 커넥션을 하나 더 빌리지 않게 하려는 것이다.</li>
+ *   <li>트랜잭션 안의 실패: 그 트랜잭션은 곧 롤백되므로 롤백이 끝난 뒤(afterCompletion,
+ *       락 해제 후) REQUIRES_NEW로 기록한다. 락을 쥔 채로 커넥션을 기다리지 않는다.</li>
+ * </ul>
  *
  * <p><b>왜 public 메서드 경계에만 거는가:</b> Spring AOP는 CGLIB/JDK 동적 프록시
  * 기반이라, 프록시를 거치지 않는 호출(private 메서드, 같은 빈 내부의 self-invocation)은
@@ -33,6 +45,8 @@ import org.springframework.stereotype.Component;
 public class AuditLogAspect {
 
     private static final int SUMMARY_MAX_LENGTH = 1000;
+    /** AuditLog.errorMessage 컬럼 길이. 넘기면 INSERT가 실패해 FAIL 감사가 통째로 사라진다. */
+    private static final int ERROR_MESSAGE_MAX_LENGTH = 2000;
 
     private final AuditLogRecorder auditLogRecorder;
 
@@ -41,16 +55,33 @@ public class AuditLogAspect {
         Object[] args = joinPoint.getArgs();
         String requestSummary = summarize(args);
 
+        boolean inTransaction = TransactionSynchronizationManager.isActualTransactionActive();
         try {
             Object result = joinPoint.proceed();
             Long targetId = extractTargetId(result, args);
-            recordSafely(() -> auditLogRecorder.recordSuccess(
-                    auditable.actorType(), auditable.action(), auditable.targetType(), targetId, requestSummary));
+            if (inTransaction) {
+                recordSafely(() -> auditLogRecorder.recordSuccessInCurrentTransaction(
+                        auditable.actorType(), auditable.action(), auditable.targetType(), targetId, requestSummary));
+            } else {
+                recordSafely(() -> auditLogRecorder.recordSuccess(
+                        auditable.actorType(), auditable.action(), auditable.targetType(), targetId, requestSummary));
+            }
             return result;
         } catch (Throwable ex) {
             Long targetId = extractTargetId(null, args);
-            recordSafely(() -> auditLogRecorder.recordFailure(auditable.actorType(), auditable.action(),
-                    auditable.targetType(), targetId, requestSummary, ex.getMessage()));
+            String errorMessage = truncate(ex.getMessage(), ERROR_MESSAGE_MAX_LENGTH);
+            Runnable recordFailure = () -> recordSafely(() -> auditLogRecorder.recordFailure(auditable.actorType(),
+                    auditable.action(), auditable.targetType(), targetId, requestSummary, errorMessage));
+            if (inTransaction && TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCompletion(int status) {
+                        recordFailure.run();
+                    }
+                });
+            } else {
+                recordFailure.run();
+            }
             // 감사로그 기록이 원래 흐름을 막으면 안 되므로 원래 예외를 그대로 다시 던진다.
             throw ex;
         }
@@ -80,8 +111,11 @@ public class AuditLogAspect {
         if (args == null || args.length == 0) {
             return "";
         }
-        String summary = Arrays.toString(args);
-        return summary.length() > SUMMARY_MAX_LENGTH ? summary.substring(0, SUMMARY_MAX_LENGTH) : summary;
+        return truncate(Arrays.toString(args), SUMMARY_MAX_LENGTH);
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value != null && value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 
     /**

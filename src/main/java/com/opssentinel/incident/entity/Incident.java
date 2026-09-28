@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * 이상탐지로 발생한 사건(Incident).
@@ -34,8 +35,13 @@ import org.hibernate.annotations.CreationTimestamp;
  * Resource 비관적 락(SELECT ... FOR UPDATE)으로 처리한다 — 서로 다른 두 row를 두고 벌어지는
  * check-then-act는 같은 row 갱신 충돌만 감지하는 낙관적 락으로 막을 수 없기 때문이다. 자세한
  * 이유는 {@code IncidentDetectionService}의 클래스 주석 참고.
+ *
+ * <p>{@code @DynamicUpdate}: 바뀐 컬럼만 UPDATE한다. 커밋 후 비동기로 저장되는 aiSummary
+ * ({@code IncidentRepository.updateAiSummary})를, 그보다 먼저 사건을 읽은 트랜잭션(예: resolve)이
+ * 커밋하면서 옛 값으로 덮어쓰지 않게 하려는 것이다.
  */
 @Entity
+@DynamicUpdate
 @Table(name = "incidents")
 @Getter
 @Setter
