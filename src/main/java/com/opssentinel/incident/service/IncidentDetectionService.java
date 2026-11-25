@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
+import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -63,13 +64,21 @@ public class IncidentDetectionService {
     }
 
     private Incident createIfAbsentWithRetry(Long resourceId, RuleEvaluation evaluation) {
+        // 락 없는 사전 조회(fast path): 이미 OPEN 사건이 있으면 락을 잡지 않고 바로 돌려준다.
+        // 같은 리소스로 몰린 요청 대부분은 첫 요청이 사건을 만든 뒤에 도착하므로 락 대기에서
+        // 빠진다. 없을 때만 아래에서 락을 잡고 다시 확인한다(double-checked) — 사전 조회와 락
+        // 사이에 다른 요청이 사건을 만들어도 락 안의 재확인이 중복 생성을 막는다.
+        Optional<Incident> alreadyOpen = incidentRepository.findFirstByResourceIdAndStatusIn(resourceId, OPEN_STATUSES);
+        if (alreadyOpen.isPresent()) {
+            return alreadyOpen.get();
+        }
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 return transactionTemplate.execute(status -> createIfAbsent(resourceId, evaluation));
             } catch (PessimisticLockingFailureException | OptimisticLockingFailureException
                     | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
-                    | CannotCreateTransactionException e) {
+                    | CannotCreateTransactionException | UnexpectedRollbackException e) {
                 // JpaSystemException/TransactionSystemException: H2가 락 타임아웃(HYT00)을
                 // 던지면 HikariCP가 그 커넥션을 커넥션 레벨 오류로 보고 폐기하는데,
                 // TransactionTemplate이 롤백을 시도하는 시점엔 이미 그 커넥션이 닫혀 있어
@@ -82,6 +91,9 @@ public class IncidentDetectionService {
                 // "JDBC begin transaction failed: Connection is closed"로 트랜잭션 자체를
                 // 열지 못하는 경우가 있다. 근본 원인(HikariCP 커넥션 폐기 도미노)이 같으므로
                 // 함께 재시도 대상에 포함하지 않으면 여전히 500으로 샌다.
+                // UnexpectedRollbackException: 락 트랜잭션 안의 감사 기록(INCIDENT_ACTION_DECIDE,
+                // 같은 트랜잭션에 참여)이 DB 오류로 실패하면 트랜잭션이 rollback-only가 돼 커밋에서
+                // 이 예외가 난다. 감사 실패가 사건 생성을 500으로 막지 않도록 재시도한다.
                 log.warn("Incident 생성 충돌 감지(resourceId={}, {}/{}번째 시도) - 재시도합니다: {}",
                         resourceId, attempt, MAX_RETRIES, e.getMessage());
             }
@@ -103,9 +115,9 @@ public class IncidentDetectionService {
                             MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId + " Incident 생성/조회에 실패했습니다(동시성 충돌)"));
         } catch (PessimisticLockingFailureException | OptimisticLockingFailureException
                 | DataIntegrityViolationException | JpaSystemException | TransactionSystemException
-                | CannotCreateTransactionException e) {
+                | CannotCreateTransactionException | UnexpectedRollbackException e) {
             throw new ConflictException(MAX_RETRIES + "회 재시도했지만 resourceId=" + resourceId
-                    + " Incident 생성/조회에 실패했습니다(동시성 충돌, 최종 폴백 조회도 커넥션 오류: "
+                    + " Incident 생성/조회에 실패했습니다(동시성 충돌, 최종 폴백 조회도 실패: "
                     + e.getMessage() + ")");
         }
     }

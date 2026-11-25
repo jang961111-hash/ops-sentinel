@@ -40,6 +40,21 @@ public class AuditLogRecorder {
         save(actorType, action, targetType, targetId, requestSummary, ResultStatus.SUCCESS, null);
     }
 
+    /**
+     * 이미 열린 비즈니스 트랜잭션 안에서 성공 기록을 그 트랜잭션에 함께 넣는다(MANDATORY).
+     *
+     * <p>락을 쥔 트랜잭션 안의 {@code @Auditable}(예: INCIDENT_ACTION_DECIDE)이 REQUIRES_NEW로
+     * 커넥션을 하나 더 빌리면, 락 대기 요청들이 풀을 다 쥐고 있을 때 락 보유 스레드가 멈추고
+     * 락 타임아웃이 대기자를 끊을 때까지 교착이 이어졌다(2026-09 재측정, T12). 같은 트랜잭션에
+     * 넣으면 추가 커넥션이 필요 없고, "조치를 결정했다"는 기록이 사건·조치 행과 함께 커밋되거나
+     * 함께 롤백된다(원자성).
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void recordSuccessInCurrentTransaction(String actorType, String action, String targetType,
+            Long targetId, String requestSummary) {
+        save(actorType, action, targetType, targetId, requestSummary, ResultStatus.SUCCESS, null);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(String actorType, String action, String targetType, Long targetId,
             String requestSummary, String errorMessage) {

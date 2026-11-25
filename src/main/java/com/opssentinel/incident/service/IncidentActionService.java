@@ -10,6 +10,7 @@ import com.opssentinel.incident.repository.IncidentActionRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
@@ -44,6 +45,7 @@ public class IncidentActionService {
 
     private final IncidentActionRepository incidentActionRepository;
     private final AiSummaryService aiSummaryService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 새로 생성된 Incident에 대해 severity/ruleTriggered 기반으로 조치를 결정·기록하고,
@@ -67,10 +69,10 @@ public class IncidentActionService {
         log.info("Incident 조치 기록: id={}, severity={}, rule={}, actions={}",
                 incident.getId(), incident.getSeverity(), incident.getRuleTriggered(), actionTypes);
 
-        // 조치 결정 직후 판단근거 자연어 요약을 채운다(US-013). AiSummaryService는 실패해도
-        // 예외를 던지지 않고 폴백 문장을 반환하므로 이 트랜잭션(비관적 락 보유 구간)을
-        // 위험에 빠뜨리지 않는다 — 자세한 이유는 AiSummaryService 클래스 주석 참고.
-        incident.setAiSummary(aiSummaryService.summarize(incident, actionTypes));
+        // 판단근거 요약(US-013)은 락 안에서 만들지 않는다. 우선 네트워크 없는 폴백 문구를 넣고,
+        // 커밋 뒤 AiSummaryListener가 비동기로 AI 요약을 채운다(AiSummaryListener 주석 참고).
+        incident.setAiSummary(aiSummaryService.fallback(incident));
+        eventPublisher.publishEvent(new IncidentCreatedEvent(incident.getId(), actionTypes));
     }
 
     private List<ActionType> decideActionTypes(IncidentSeverity severity, String ruleTriggered) {

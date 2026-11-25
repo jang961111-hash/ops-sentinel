@@ -6,6 +6,7 @@ import com.opssentinel.incident.entity.IncidentSeverity;
 import com.opssentinel.incident.entity.IncidentStatus;
 import com.opssentinel.incident.repository.IncidentRepository;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -49,7 +50,9 @@ public class IncidentQueryService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Incident not found: " + id));
         if (incident.getStatus() != IncidentStatus.RESOLVED) {
             incident.setStatus(IncidentStatus.RESOLVED);
-            incident.setResolvedAt(LocalDateTime.now());
+            // DB(TIMESTAMP)는 마이크로초까지만 저장한다. Linux JVM의 now()는 나노초라, 자르지 않으면
+            // 이 메서드가 돌려준 값과 다시 읽은 값이 달라진다(CI에서 발견, 멱등성 테스트 실패).
+            incident.setResolvedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
         }
         return incident;
     }

@@ -17,7 +17,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * AOP가 자동 기록하는 감사로그. 사건/조치 처리 성공·실패 여부와 무관하게 100% 기록된다.
+ * AOP가 자동 기록하는 감사로그. 사건/조치 처리 성공·실패 여부와 무관하게 기록한다.
  * 사람이 직접 손대지 않는다.
  */
 @Entity

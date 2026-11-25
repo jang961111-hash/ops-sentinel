@@ -7,7 +7,8 @@ import java.lang.annotation.Target;
 
 /**
  * 이 애노테이션이 붙은 메서드 호출은 {@code AuditLogAspect}가 가로채 성공/실패 여부와
- * 함께 별도 트랜잭션으로 AuditLog에 100% 기록한다(PRD 3장-4번).
+ * 함께 AuditLog에 기록한다(PRD 3장-4번). 트랜잭션 밖 호출은 별도 트랜잭션으로, 트랜잭션 안
+ * 호출의 성공은 같은 트랜잭션으로, 실패는 롤백 뒤 별도 트랜잭션으로 남긴다.
  *
  * <p><b>반드시 스프링 빈의 public 메서드에만 붙여야 한다.</b> Spring AOP는 프록시
  * 기반이라 private 메서드나 같은 빈 내부의 self-invocation(예: 같은 클래스 안에서
