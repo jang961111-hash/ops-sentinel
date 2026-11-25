@@ -1,25 +1,21 @@
-// US-020: G062_장병헌_백엔드최종실습.pdf 조판·렌더링 스크립트
+// US-020: 백엔드 최종실습 제출 PDF 조판·렌더링 스크립트
 // docs/08_최종PDF_생성_프롬프트.md 표준(5부 구조·디자인토큰·페이지문법)을 그대로 구현한다.
 // 실행 방법:
 //   cd docs/pdf/render-script && npm install playwright@1.62.1 && npx playwright install chromium
 //   node build.mjs
-// 입력: docs/pdf/captures/*.png + raw-logs/*.txt, docs/pdf/원본캡처/*.png
-// 출력: docs/pdf/G062_장병헌_백엔드최종실습.pdf (ROOT 상수를 로컬 저장소 경로에 맞게 수정 후 실행)
+// 입력: docs/pdf/captures/*.png + raw-logs/*.txt
+// 출력: docs/pdf/ops-sentinel-final-report.pdf (ROOT는 이 파일 기준 저장소 루트)
+// 2026-09 공개 정리: 교육생 고유번호·로컬 절대경로·제3자 캡처(부록 D)를 뺐다. 제출본과 쪽수가 다르다.
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const ROOT = '/Users/jangbyeongheon/workspace/ops-sentinel';
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const CAP = path.join(ROOT, 'docs/pdf/captures');
-const ORIG = path.join(ROOT, 'docs/pdf/원본캡처');
-const OUT = path.join(ROOT, 'docs/pdf/G062_장병헌_백엔드최종실습.pdf');
+const OUT = path.join(ROOT, 'docs/pdf/ops-sentinel-final-report.pdf');
 
 function img(name) {
   const buf = fs.readFileSync(path.join(CAP, name));
-  return `data:image/png;base64,${buf.toString('base64')}`;
-}
-function imgOrig(name) {
-  const buf = fs.readFileSync(path.join(ORIG, name));
   return `data:image/png;base64,${buf.toString('base64')}`;
 }
 function esc(s) {
@@ -91,7 +87,7 @@ function textPage({ num, title, subtitle, html, center }) {
       <hr class="rule-strong" />
       <table class="cover-meta">
         <tr><td>소속</td><td>SKALA 4기 광주캠퍼스 광주 2반</td></tr>
-        <tr><td>이름 / 고유번호</td><td>장병헌 (G062)</td></tr>
+        <tr><td>이름</td><td>장병헌</td></tr>
         <tr><td>제출일</td><td>2026-08-08</td></tr>
         <tr><td>저장소</td><td>github.com/jang961111-hash/ops-sentinel</td></tr>
         <tr><td>기술 스택</td><td>Spring Boot 3.3 · Java 21 · Gradle · JPA(CRUD) + MyBatis(집계) · H2(기본)/PostgreSQL(Docker) · OpenAI API(gpt-4o-mini) · JWT(jjwt) · springdoc-openapi(Swagger)</td></tr>
@@ -655,16 +651,8 @@ capturePage({
     </table>
     <p class="p-note">매 스프린트 종료 시 <code>git tag</code>를 남겨 언제든 직전 태그로 롤백해 "제출 가능 상태"를 잃지 않는 체크포인트 원칙을 지켰다. 전체 12개 태그는 <code>git tag</code> 실행 결과와 일치한다(Sprint 9은 사후 결함 수정이라 별도 태그 없이 CHANGELOG로만 기록).</p>
     <h3 class="mini-h">SK AX 뉴스룸 원문 자료</h3>
-    <p class="p-note">SK AX 공식 뉴스룸(<a href="https://www.skax.co.kr/company/news-room/sk-ax-대신증권-에이전틱ai로-금융인프라-운영-혁신-나섰다">skax.co.kr/company/news-room/...</a>)을 2026-08-09 사용자가 직접 브라우저로 접속해 확보한 풀페이지 캡처(PDF+PNG)를 다음 페이지에 원본 그대로 첨부한다.</p>`;
-  textPage({ num: '부록 C', title: '부록 — 스프린트 실측 기록 & 원문 확인 자료 안내', subtitle: 'docs/04_일정관리.md 요약 · SK AX 원본 캡처 안내', html });
-}
-{
-  const html = `
-    <div class="img-wrap appendix-img">
-      <img src="${imgOrig('screencapture-skax-co-kr-company-news-room-sk-ax-ai-2026-08-09-03_13_55.png')}" alt="SK AX 뉴스룸 원문 풀페이지 캡처" />
-    </div>
-    <p class="p-note">SK AX 공식 뉴스룸 "SK AX-대신증권, 에이전틱AI로 금융인프라 운영 혁신 나섰다"(2026.04.23 게시) 풀페이지 스크린샷. 2026-08-09 03:13:55에 사용자가 직접 브라우저로 접속해 캡처했다(robots.txt 차단으로 자동 fetch 실패 이후 확보한 1차 소스 원문). 동일 캡처의 PDF 원본은 <code>docs/pdf/원본캡처/</code>에 함께 보관되어 있다.</p>`;
-  textPage({ num: '부록 D', title: '부록 — SK AX 뉴스룸 원문 캡처', subtitle: '1차 소스 확보 자료 (2026-08-09 직접 캡처)', html, center: true });
+    <p class="p-note">SK AX 공식 뉴스룸(<a href="https://www.skax.co.kr/company/news-room/sk-ax-대신증권-에이전틱ai로-금융인프라-운영-혁신-나섰다">skax.co.kr/company/news-room/...</a>) 원문은 링크로만 안내한다. 제출 당시 첨부했던 풀페이지 캡처(부록 D)는 제3자 저작물이라 공개 저장소에서 삭제했다(2026-09).</p>`;
+  textPage({ num: '부록 C', title: '부록 — 스프린트 실측 기록 & 원문 확인 자료 안내', subtitle: 'docs/04_일정관리.md 요약 · SK AX 원문 링크', html });
 }
 
 console.log(`총 페이지 수: ${pages.length}`);
@@ -775,10 +763,9 @@ const bodyHtml = pages.map((p, i) => {
   return `<div class="page">${p.head}${p.body}${footer}</div>`;
 }).join('\n');
 
-const fullHtml = `<!doctype html><html lang="ko"><head><meta charset="utf-8"/><title>G062_장병헌_백엔드최종실습</title>
+const fullHtml = `<!doctype html><html lang="ko"><head><meta charset="utf-8"/><title>Ops Sentinel 백엔드최종실습 보고서</title>
 <style>${CSS}</style></head><body>${bodyHtml}</body></html>`;
 
-fs.writeFileSync('/private/tmp/claude-501/-Users-jangbyeongheon/50ceb8c1-fa03-49a8-9de3-f2a88820970f/scratchpad/pdfbuild/rendered.html', fullHtml);
 
 const browser = await chromium.launch();
 const page = await browser.newPage();

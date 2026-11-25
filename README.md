@@ -1,354 +1,206 @@
-# Ops Sentinel
+# Ops Sentinel — 지표 이상을 규칙엔진으로 판정해 사건·조치·감사로그를 남기는 Spring Boot API
 
-![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-6DB33F?logo=springboot&logoColor=white)
-[![CI](https://github.com/jang961111-hash/ops-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/jang961111-hash/ops-sentinel/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
-![License](https://img.shields.io/badge/license-education%20use%20only-lightgrey)
+> 가상 인프라 지표가 임계치를 넘으면 규칙엔진이 심각도와 조치를 정하고, 같은 리소스에 사건이 중복으로 생기지 않게 비관적 락으로 막으며, 모든 판단을 AOP 감사로그로 남기는 백엔드다. LLM(OpenAI gpt-4o-mini)은 이미 내려진 판단을 1~2문장으로 요약할 뿐 판단에 관여하지 않는다.
 
-## 프로젝트 최종 상태 (2026-08-09)
+[![CI](https://github.com/jang961111-hash/ops-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/jang961111-hash/ops-sentinel/actions/workflows/ci.yml) ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-6DB33F?logo=springboot&logoColor=white) ![License](https://img.shields.io/badge/license-MIT-blue)
 
-- **스토리 25개(US-001~US-025) 전부 완료** — P0(MVP)~P2(부가 기능) 기능 스토리 17개에 이어, 독립검증 대응·PDF 제출·콜드스타트 채점 대응·포트폴리오 정리로 이어지는 문서/검증 스토리 8개까지 모두 마쳤다.
-- **독립 architect(Opus) 검증 통과** — 1차 검증에서 감사로그 무결성·예외처리·MyBatis DB 호환성 결함 5건(C1~C5)으로 REJECTED 판정을 받았다. 전부 실제로 재현한 뒤 수정하고 재검증을 받아 APPROVED로 뒤집었다(`CHANGELOG.md`의 `[1.0.1]` 참고).
-- **콜드스타트 채점 시뮬레이션에서 발견된 동시성 버그를 완전히 해결** — 사전지식 없는 별도 에이전트가 실제로 제출용 zip을 풀고 서버를 띄워 채점하는 과정에서, 동일 리소스에 40건이 동시 요청되면 H2 락 타임아웃이 `JpaSystemException`으로 감싸져 재시도 목록을 벗어나 500 에러로 새는 결함을 발견했다. 재시도 예외 목록을 보강하고 HikariCP 커넥션 풀을 30→60으로 늘려 당시 조건(40건)에서는 해결했다(`CHANGELOG.md`의 `[1.0.2]` 참고). 단, 2026-09 재측정에서 풀 증설은 문턱만 옮긴 증상 완화로 드러났다(풀 60에서도 150건이면 붕괴). 이후 락 구간을 구조적으로 고쳐 풀을 기본값 10으로 되돌렸다(7·8장).
-- **40건 동시요청 3회 반복 재현(풀 60)** — 당시 재검증에서 매회 500 0건·201 40건, 감사로그 40/40이었다(3회 합산 120/120). 2026-09 재측정에서도 같은 조건은 재현됐지만, **동시 150건에서는 409가 91건 나고 감사로그가 38~39%만 남아(FAIL 기록 0건) "무손실"은 40건 조건에 한정된 주장이었다.** 구조 수정 후에는 풀 10·동시 150건에서도 201 450/450, 감사 450/450이다(2026-09 재측정, 3라운드, 측정 방법은 PR 본문).
-- **Docker Compose(app+PostgreSQL) 실제 기동 검증 완료** — `docker compose up -d --build`로 컨테이너를 띄운 뒤 `/actuator/health`에서 `db` 컴포넌트가 `PostgreSQL`로 확인되는 것까지 실측했다.
+**데모**: 배포본 없음 (로컬 실행 → [실행 방법](#실행-방법)) · **기간**: 2026.08.08 22:38 – 08.09 07:20 (약 8시간 15분, 제출 2026-08-09) → 사후 재측정·보완 2026.09.28 · **팀**: 개인 (커밋 작성자 1명) · **맥락**: SKALA 4기 백엔드 최종 실습(개인 과제)
 
-> 가상 인프라 지표를 감시하다가 이상을 감지하면 스스로 사건을 생성·심각도 판정·조치기록·AI 요약까지 수행하고, 모든 과정을 감사 가능하게 남기는 백엔드 API
+**스택**: Java 21 · Spring Boot 3.3.4 · Spring Data JPA + MyBatis · H2(기본) / PostgreSQL 16(Docker Compose) · Spring AOP · jjwt · springdoc-openapi · OpenAI Chat Completions(`RestClient`) · JUnit 5 · JaCoCo · GitHub Actions
 
-SKALA 4기 백엔드 최종 실습 제출물(개인 과제) · Spring Boot 3.3 / Java 21 / Gradle
+![지표 이상 → 사건 생성 → 조치 이력·AI 요약 확인 (curl 4단계, 2026-08-09 로컬 실행)](docs/images/capture-scenario.gif)
 
-![기술 스택](docs/images/tech-stack.png)
+## 먼저 읽기: 어떻게 만들었고, 무엇이 사실인가
 
-> 위 이미지의 "Spring Boot 3.2" 표기는 다이어그램 제작 시점의 오기다. 실제 적용 버전은 `build.gradle` 기준 **Spring Boot 3.3.4**다(이 이미지는 mermaid 소스가 없는 HTML 기반이라 텍스트 재렌더링이 어려워, 정정 사실을 이 캡션으로 병기한다). 나머지 스택 표기(Java 21 / Gradle / PostgreSQL / H2 / MyBatis / Swagger·OpenAPI / OpenAI API / JWT / Docker Compose / JUnit 5 / GitHub Flow)는 코드와 대조 검증을 마쳤다.
+- **코드는 AI 코딩 에이전트가 작성했다.** Claude Code를 Ralph 루프(같은 지시를 완료될 때까지 자율 반복 실행)로 돌려 약 8시간 15분 동안 이슈 17개·PR 30개(전부 머지)를 만들었다. 커밋은 모두 내 계정이다. 에이전트에 넘긴 실행 지시문 원문은 [`docs/CLAUDE_CODE_마스터프롬프트.md`](docs/CLAUDE_CODE_마스터프롬프트.md)에 그대로 두었다.
+- **제출 당시 README의 "감사로그 100% 기록"은 사실이 아니었다.** 2026-09 재측정에서 AI 응답 지연 3초를 넣고 같은 리소스에 동시 150건을 보내자 감사로그가 38~39%만 남았고 실패 기록은 0건이었다. AI 지연이 없을 때도 3라운드 중 1라운드에서 409 91건·FAIL 감사 0건이 나왔는데, 제출 당시 CHANGELOG의 150건 기록과 숫자까지 같다.
+- **제출 당시 "커넥션 풀 30→60 증설로 해결"은 증상 완화였다.** 원인은 락 안의 AI 호출, 락 안 감사로그(REQUIRES_NEW)의 커넥션 교착, OSIV가 쥔 닫힌 커넥션 재사용이었다. 구조를 고친 뒤([PR #48](https://github.com/jang961111-hash/ops-sentinel/pull/48), 머지 전) 풀을 기본값 10으로 되돌려도 같은 리소스 동시 150건에서 201 450/450, 감사 450/450이다.
+- 판단 로직에 LLM이 끼지 않는다는 주장은 코드상 사실이다. 심각도·조치는 `IncidentRuleEngine`과 `IncidentActionService`의 분기가 정하고, LLM 결과는 `aiSummary` 필드에만 들어간다. 단 LLM은 지표 수치를 받지 않으므로 요약은 이미 정해진 라벨을 문장으로 옮기는 수준이다.
 
-![지표 이상→Incident 생성→AI 요약 시나리오](docs/images/capture-scenario.gif)
+## 핵심 수치
 
-> 위 GIF는 실제 로컬 서버(`./gradlew bootRun`)에 대한 `curl` 호출 4단계(리소스 등록 → 지표 이상치 주입 → 사건 목록 확인 → 사건 상세의 조치이력·AI 요약 확인)를 그대로 이어붙인 것이다(`docs/pdf/captures/07-scenario-step1~4` 원본 재사용).
+모두 **2026-09-28 재측정**이다. 환경: Apple M5 16GB · Temurin 21.0.11 · 기본 프로필 H2 인메모리 · 단일 JVM. 부하 측정은 레포 밖 측정 스크립트(asyncio + aiohttp)와 OpenAI 목 서버(HTTPS 프록시, 지연 주입)로 했고 실제 OpenAI는 한 번도 호출하지 않았다. 값은 3라운드 중앙값, 응답코드·감사 건수는 3라운드 합이다.
 
----
+| 지표 | 수정 전 (`b6b8709`, 제출본) | 수정 후 (PR #48) | 측정 조건 |
+|---|---|---|---|
+| 같은 리소스 동시 150건, **풀 10** | 201 24 / 409 54 / **500 372**, p95 30.19s, 감사 성공 24 + 실패 372 | **201 450/450**, p95 0.11s, **감사 450/450** | AI 응답 지연 3s 주입, 수정 후 커밋 `1f2fc44` |
+| 같은 리소스 동시 150건, 풀 60 (제출 당시 설정) | 201 172 / 409 278, p95 21.29s, **감사 172/450 (38.2%)**, FAIL 감사 0 | 201 450, p95 0.13s, 감사 450/450 | AI 지연 3s |
+| AI 지연이 사건 생성 요청을 붙잡는 정도 | 같은 리소스 20건 전부 **p95 3.05s, 6.6 rps** | **p95 0.05s, 381.9 rps** | N=20, 풀 30, AI 지연 3s |
+| 테스트 | 46/46 | **56/56** (실패·스킵 0) | `./gradlew clean test`, 커밋 `3f5b598` |
+| 커버리지 (JaCoCo) | 라인 70.0% · 브랜치 69.9% | **라인 80.0% (453/566) · 브랜치 77.3% (116/150)** | 같은 명령, 커밋 `3f5b598` |
+| 조회·쓰기 API 지연 (경합 없음) | 동시성 10: p50 0.6~2.7ms / p95 1.0~5.3ms · 동시성 50: p95 4.2~18.3ms, 오류 0 | (미측정) | 조회 7종 + 지표 쓰기 1종, 엔드포인트당 300건×2, `b6b8709` |
+| 클론 → 빌드 | `git clone` 4.1s → `./gradlew build` 11.0s (테스트 포함), 기동 후 health 응답 약 3~4s | — | Gradle 배포판·의존성 캐시가 있는 상태 |
 
-## 목차
-1. [배경](#1-배경)
-2. [아키텍처](#2-아키텍처)
-3. [핵심 시나리오](#3-핵심-시나리오)
-4. [판단(규칙엔진) vs 설명(LLM) 역할 분리](#4-판단규칙엔진-vs-설명llm-역할-분리)
-5. [실행 방법](#5-실행-방법)
-6. [API 목록](#6-api-목록)
-7. [동시성 제어](#7-동시성-제어)
-8. [감사로그(AOP)](#8-감사로그aop)
-9. [현재 진행 상태](#9-현재-진행-상태)
-10. [한계 및 정직하게 밝힐 부분](#10-한계-및-정직하게-밝힐-부분)
-11. [향후 발전 계획](#11-향후-발전-계획)
+- 전후 비교 전체 표와 풀 10 실패 양상(Hikari `connectionTimeout` 30s)은 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#1-커넥션-풀-고갈--풀-증설은-문턱만-옮겼다)에 있다.
+- 한계: H2 인메모리 조건이다. PostgreSQL 프로필(Docker Compose)에서는 부하를 재지 않았다. 수정 후 Hikari active가 0으로 잡힌 것은 100ms 폴링보다 버스트가 빨리 끝나서이며, "커넥션을 안 썼다"는 뜻이 아니다.
 
----
+## 내가 한 일
 
-## 1. 배경
+모든 커밋이 내 계정이다. 코드 작성은 Claude Code가 했다. 아래는 근거가 레포에 남아 있는 내 몫이다.
 
-2026년 4월, SK AX는 대신증권과 7년 규모의 계약을 맺고 1단계로 모니터링 에이전트·백업 에이전트·장애/상황관리 에이전트를 금융 인프라 운영에 투입했다. 핵심은 사람이 로그를 뒤져 사후에 원인을 찾는 방식이 아니라, 시스템이 이상 징후를 선제적으로 탐지·분석·판단하고 조치까지 수행하는 에이전틱 AIOps 구조로 운영 패러다임을 전환한 것이다. **Ops Sentinel은 이 사례가 제시하는 "지표 감시 → 이상탐지 → 판단 → 조치 → 감사"라는 개념적 파이프라인을, 개인 백엔드 과제로 소화 가능한 스케일로 축소 구현한 프로젝트다.** 실제 물리 인프라 대신 시뮬레이션 지표를 사용하고, 판단은 학습 모델이 아닌 규칙 기반 엔진이 맡으며, LLM은 그 판단을 사람이 읽을 수 있는 자연어로 설명하는 보조 역할에 한정한다. 화려한 기능 나열보다 "왜 이런 판단을 내렸는지 사람이 사후에 검증할 수 있는가"라는 감사 가능성(auditability)에 설계의 무게중심을 두었다.
+- **주제와 범위 설정 (2026-08-08)**: SK AX×대신증권 에이전틱 AIOps 사례(2026.4 보도)의 "지표 감시 → 이상 탐지 → 판단 → 조치 → 감사"를 개인 과제 규모로 줄였다. "판단은 규칙엔진, LLM은 설명만", MSA·클라우드 배포 제외, H2 기본 + Compose 선택 실행을 기획서에 정했다 — [`docs/01_PRD_기획명세서_최종본.md`](docs/01_PRD_기획명세서_최종본.md)(작성자 표기 본인), [`docs/07_배경조사_근거자료집.md`](docs/07_배경조사_근거자료집.md).
+- **AI 에이전트 실행과 검증 구조 (2026-08-08~09)**: 실행 지시문을 넘겨 Ralph 루프를 돌렸고, 결과를 두 번 따로 검증하게 했다. ① 별도 리뷰 에이전트 검증에서 REJECTED(결함 C1~C5) → 재현 후 수정 → 재검증 APPROVED ② 사전지식 없는 에이전트가 제출 zip을 풀어 서버를 띄우는 "콜드스타트 채점"에서 동시 40건 중 29건 500 결함 발견 → 수정. 기록은 [`CHANGELOG.md`](CHANGELOG.md) `[1.0.1]`·`[1.0.2]`.
+- **사후 재측정과 구조 수정 (2026-09-28)**: 제출 README의 수치 주장을 전부 다시 재도록 했고, 반증된 주장(감사 100%, 풀 증설로 해결, 타임아웃 3초)을 그대로 공개하기로 했다. 재측정·수정 작업도 Claude Code로 했다. 결함마다 재현 테스트를 먼저 커밋해 수정 전 실패를 확인한 뒤 고쳤고, 독립 리뷰 에이전트의 MED 지적 3건과 재검토 지적 2건을 추가 커밋으로 반영했다 — [PR #48](https://github.com/jang961111-hash/ops-sentinel/pull/48).
+- **문서·위생 (2026-09-28, 이 PR)**: README를 코드와 대조해 다시 쓰고(불일치 13건 정정), 트러블슈팅·회고를 추가했다. MIT LICENSE를 추가하고, 공개 레포에 있던 교육과정 내부 정보(강사 실명·공지 인용·교육생 고유번호가 적힌 제출 PDF)와 제3자 뉴스룸 캡처를 현재 트리에서 뺐다.
 
-이 배경 설명과 설계 결정의 근거는 학술 논문·업계 표준 문서·언론 보도로 교차검증했다(자세한 출처와 비판적 평가는 `docs/07_배경조사_근거자료집.md` 참고).
+## 아키텍처
 
-| 우리 프로젝트의 설계 | 근거 출처 |
+```mermaid
+flowchart LR
+  subgraph Clients["클라이언트"]
+    OP["운영자 · curl / Swagger UI"]
+    DASH["dashboard.html<br/>10초 폴링"]
+  end
+
+  subgraph App["Spring Boot 단일 애플리케이션 (도메인별 패키지)"]
+    JWT["JwtAuthenticationFilter<br/>감사로그 조회 · 사건 해결만 보호"]
+    CTRL["Controller 6개 · REST 13개"]
+    SCHED["@Scheduled 7초<br/>무작위 지표 (이상치 약 10%)"]
+    MET["MetricService.simulate"]
+    RULE["IncidentRuleEngine<br/>임계치 · 심각도 (결정론)"]
+    DET["IncidentDetectionService<br/>① 락 없는 OPEN 사건 조회<br/>② 없으면 Resource 행 FOR UPDATE<br/>③ 재확인 후 생성 · 재시도 3회 → 409"]
+    ACT["IncidentActionService<br/>조치 결정 · 기록 (같은 트랜잭션)"]
+    LSN["AiSummaryListener<br/>AFTER_COMMIT · 전용 풀 2~4 · 큐 200"]
+    AIS["AiSummaryService<br/>연결·읽기 타임아웃 각 3초 · 실패 시 폴백 문구"]
+    AUD["AuditLogAspect (@Auditable)<br/>트랜잭션 밖: REQUIRES_NEW<br/>트랜잭션 안 성공: 같은 트랜잭션<br/>트랜잭션 안 실패: 롤백 후 기록"]
+    MB["MyBatis 집계 2종"]
+    HI["Actuator<br/>incidentEngine HealthIndicator"]
+  end
+
+  DB[("H2 인메모리 (기본)<br/>PostgreSQL 16 (docker 프로필)")]
+  LLM["OpenAI gpt-4o-mini<br/>요약만"]
+
+  OP --> JWT --> CTRL
+  DASH --> CTRL
+  CTRL --> MET
+  SCHED --> MET
+  MET --> RULE --> DET --> ACT
+  ACT -- "IncidentCreatedEvent" --> LSN
+  LSN --> AIS --> LLM
+  LSN -- "UPDATE ai_summary" --> DB
+  DET --> DB
+  ACT --> DB
+  AUD -. "감싼다" .-> MET
+  AUD -. "감싼다" .-> DET
+  AUD -. "감싼다" .-> ACT
+  AUD --> DB
+  CTRL --> MB --> DB
+  HI --> DB
+```
+
+요청 하나의 흐름:
+
+1. `POST /api/metrics/simulate`(또는 7초 스케줄러)가 지표를 저장하고 `IncidentRuleEngine`이 임계치를 검사한다(에러율 ≥5%, CPU·메모리 ≥90%, 큐 길이 ≥50).
+2. 이상이면 먼저 락 없이 그 리소스의 OPEN 사건을 찾는다. 있으면 바로 돌려준다. 없을 때만 `Resource` 행에 `SELECT … FOR UPDATE`를 걸고 다시 확인한 뒤 사건을 만든다.
+3. 같은 트랜잭션에서 조치(MONITOR/ALERT/RESTART/BACKUP/ESCALATE 조합)를 기록하고, `aiSummary`에는 폴백 문구를 먼저 넣은 채 커밋한다. 락은 여기서 풀린다.
+4. 커밋 뒤 `AiSummaryListener`가 전용 스레드 풀에서 OpenAI를 불러 요약을 `UPDATE`로 바꿔 쓴다. 키가 없거나 실패하면 폴백 문구가 남는다.
+5. `@Auditable`이 붙은 4개 메서드(`simulate`, `detectAndCreate`, `decideAndRecord`, `resolve`)의 성공·실패가 `audit_log`에 남는다. 스케줄러의 지표 생성은 감사 대상이 아니다.
+
+ERD는 [`docs/images/erd.png`](docs/images/erd.png)(엔티티 5개: Resource, MetricSnapshot, Incident, IncidentAction, AuditLog), API 상세는 [`docs/02_API_기능명세서.md`](docs/02_API_기능명세서.md)와 Swagger UI에 있다.
+
+## 기술적 결정
+
+| 결정 | 대안 | 선택 이유 | 대가(trade-off) |
+|---|---|---|---|
+| 판단은 규칙엔진, LLM은 사후 요약만 | LLM이 심각도·조치 결정 | 판단을 결정론적으로 재현·테스트하기 위해 | 요약 프롬프트에 지표 수치가 없어 "왜"를 새로 설명하지 못한다 |
+| `Resource` 행 비관적 락 + 락 없는 사전 조회(double-checked) | `Incident.version` 낙관적 락, 부분 유니크 인덱스 | 낙관적 락은 새 행 두 개의 동시 insert를 막지 못하고, H2는 부분 유니크 인덱스가 없다 | 같은 리소스 첫 사건 생성은 직렬화된다. 락 타임아웃 10초, 재시도 backoff 없음 |
+| AI 요약을 커밋 후 비동기로 (PR #48) | 락 안에서 동기 호출 (제출본) | AI 응답 시간이 락 보유 시간이 되지 않게 하려고 | 생성 직후 조회하면 폴백 문구가 보인다. 큐(200) 초과나 종료 10초 초과분은 요약 없이 폴백으로 남는다 |
+| 감사 기록을 트랜잭션 위치에 따라 분기 (PR #48) | 모든 감사를 REQUIRES_NEW | 락 안에서 커넥션을 하나 더 빌리면 대기자가 풀을 다 쥐었을 때 교착이 생겼다 | **롤백된 트랜잭션의 성공 기록은 남지 않는다.** 그 요청의 실패는 트랜잭션 밖 어드바이스가 기록한다 |
+| OSIV 끔 (PR #48) | Spring Boot 기본값(켜짐) | 요청마다 커넥션을 응답 끝까지 쥐고, 락 타임아웃으로 폐기된 커넥션을 같은 요청의 재시도·감사가 다시 썼다 | 컨트롤러에서 지연 로딩을 못 쓴다. 사건 상세는 fetch join으로 읽는다 |
+| JPA(CRUD·락) + MyBatis(집계) | 전부 JPQL | 다중 테이블 집계를 SQL로 드러내기 위해 | H2 전용 함수가 PostgreSQL에서 깨진 적이 있다(C4). 테스트는 H2에서만 돈다 |
+| jjwt + `OncePerRequestFilter`로 두 경로만 보호 | Spring Security | 계정·역할 체계가 없는 규모라서 | admin 계정 하나, 기본 비밀번호 `admin1234`, secret 미설정 시 재기동마다 토큰 무효 |
+
+## 트러블슈팅 (요약 → 상세는 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md))
+
+- **커넥션 풀 고갈** → 제출 당시 풀 30→60 증설(증상 완화) → 2026-09 재측정으로 락 안 AI 호출·락 안 REQUIRES_NEW 교착·OSIV 닫힌 커넥션 재사용을 분리해 확인 → 구조 수정 (풀 10·동시 150건: 500 372건 → 0건, 201 450/450)
+- **"감사로그 100%"가 거짓이었다** → 409로 끝난 요청은 성공·실패 기록이 모두 없었다 → OSIV 끔 + 트랜잭션 위치별 감사 분기 + errorMessage 2000자 절삭 (동시 150건 감사 38.2% → 100%)
+- **CI(Linux)에서만 실패한 해결 시각 테스트** → Linux JVM은 나노초, H2 TIMESTAMP는 마이크로초 → 운영 코드에서 마이크로초로 절삭 (CI 1차 실패 → 통과)
+- **리뷰가 잡은 비동기 요약 덮어쓰기와 500** → 전체 컬럼 UPDATE가 요약을 폴백으로 되돌림, rollback-only 커밋이 재시도 목록 밖 → `@DynamicUpdate`, `UnexpectedRollbackException` 재시도 (재현 테스트 실패 → 통과)
+- **감사로그가 존재하지 않는 사건을 가리킴 (2026-08)** → `Optional.empty()`일 때 인자의 지표 id를 사건 id로 기록 → Optional을 그대로 존중 (전용 회귀 테스트는 아직 없음)
+
+## 실행 방법
+
+사전 요구: JDK 21. DB 설치는 필요 없다(H2 인메모리).
+
+```bash
+git clone https://github.com/jang961111-hash/ops-sentinel.git
+cd ops-sentinel
+./gradlew bootRun        # http://localhost:8080
+```
+
+| 주소 | 용도 |
 |---|---|
-| 지표(CPU/메모리/에러율/큐길이) 수집 구조 | Google SRE Book, Four Golden Signals |
-| 이상탐지 → 근본원인 → 자동조치 파이프라인 | 베이징대 AIOps 서베이 논문(arXiv:2406.11213) |
-| 규칙기반 판단 + LLM은 설명만 담당 | FINOS AI 거버넌스 프레임워크, Tier 2 감사 요구사항 |
-| OpenAI 실패 시 폴백 처리 | Zalando Engineering Blog, AI 사후분석 2년 운영 사례의 한계 인정 |
-| 전체 기획 동기 | SK AX × 대신증권 7년 계약(2026.4) |
+| `/swagger-ui/index.html` | 전체 API 문서·호출 |
+| `/dashboard.html` | 최근 사건·리소스 위험도 랭킹 (인증 없음) |
+| `/actuator/health` | 헬스체크. 최근 5분 안에 미해결 CRITICAL 사건이 있으면 `incidentEngine`이 DOWN |
+| `/h2-console` | JDBC URL `jdbc:h2:mem:opssentinel`, 사용자 `sa`, 비밀번호 없음 |
 
-## 2. 아키텍처
+빠른 시나리오 (기동 시 예시 리소스 8개가 자동 등록되므로 새 리소스 id는 9부터다. 2026-09-28 이 순서로 실행해 확인했다):
 
-![시스템 아키텍처](docs/images/architecture.png)
+```bash
+curl -s -X POST localhost:8080/api/resources -H 'Content-Type: application/json' \
+  -d '{"name":"api-1","type":"API"}'                         # → {"id":9,...}
+curl -s -X POST localhost:8080/api/metrics/simulate -H 'Content-Type: application/json' \
+  -d '{"resourceId":9,"errorRate":25}'                       # 에러율 25% → CRITICAL 사건
+curl -s 'localhost:8080/api/incidents?resourceId=9'          # 사건 id 확인
+curl -s localhost:8080/api/incidents/<사건 id>               # 조치 이력(ESCALATE, ALERT) + aiSummary
+TOKEN=$(curl -s -X POST localhost:8080/api/auth/token -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin1234"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
+curl -s localhost:8080/api/audit-logs -H "Authorization: Bearer $TOKEN"
+```
 
-> 클래스명(`IncidentRuleEngine`, `IncidentDetectionService`, `IncidentActionService`, `AiSummaryService`, `AuditLogAspect`)과 락 방식(비관적 락)까지 실제 소스와 대조해 반영한 다이어그램이다(`docs/images/source/architecture.mmd`).
+테스트 (OpenAI를 호출하지 않는다. `build.gradle`이 테스트 JVM의 `OPENAI_API_KEY`를 빈 값으로 고정하고, AI 지연 테스트는 JDK `HttpServer`로 만든 가짜 서버를 쓴다):
 
-### 2-1. 왜 모듈러 모놀리식인가 (ADR 요약)
+```bash
+./gradlew clean test     # 56건, JaCoCo 리포트: build/reports/jacoco/test/html/index.html
+```
 
-| 옵션 | 채택 여부 | 근거 |
+선택 사항:
+
+| 환경변수 | 기본값 | 역할 |
 |---|---|---|
-| **모듈러 모놀리식**(도메인별 패키지 분리, 단일 배포단위) | ✅ 채택 | 혼자·제한된 시간 안에 완성해야 하는 조건에서 서비스 간 통신·분산 트랜잭션 문제 없이도 "구조가 잘 나뉘어 있다"는 신호를 줄 수 있는 현실적인 선택 |
-| MSA(서비스 완전 분리) | ❌ 기각 | 서비스 간 통신·분산 트랜잭션·배포 파이프라인까지 혼자 감당하기엔 리스크 대비 이득이 작음 |
-| 단순 레이어드 모놀리식(도메인 구분 없이 Controller/Service/Repository만) | ❌ 기각 | 도메인 경계가 드러나지 않아 구조적 차별점이 없음 |
+| `OPENAI_API_KEY` | 없음 | 있으면 사건마다 요약 1회 호출. 없으면 폴백 문구 |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | 호환 공급자·프록시·테스트용 |
+| `OPENAI_TIMEOUT_MS` | 3000 | 연결·읽기 각각에 적용(최악 약 6초) |
+| `ADMIN_PASSWORD` | `admin1234` | 관리자 토큰 발급용. 데모 기본값이므로 공개 환경에서는 반드시 바꾼다 |
+| `JWT_SECRET` | 없음 | 없으면 기동마다 랜덤 키 |
 
-### 2-2. 패키지 구조
-
-도메인별로 패키지를 나누고, 각 도메인 내부는 다시 `web(Controller) / service / repository / entity` 계층으로 분리했다. 도메인 간에는 직접 참조를 최소화해, 필요해지면 패키지 단위로 서비스를 쪼개기 쉬운 형태를 유지한다.
-
-```
-src/main/java/com/opssentinel
-├── resource   # 인프라 리소스(서버/DB/큐/API) 등록·조회
-├── metric     # 지표 시뮬레이션·조회
-├── incident   # 이상탐지 규칙엔진, 사건 생성·조회·해결, 커스텀 헬스 인디케이터
-├── audit      # AOP 감사로그(@Auditable, Aspect, Recorder)
-├── analytics  # MyBatis 기반 집계 API
-└── common     # 전역 예외처리, 공통 응답 DTO
-```
-
-### 2-3. JPA(CRUD) + MyBatis(집계) 역할 분리
-
-- 단건 CRUD, 상태 전이, 락이 필요한 조회(`SELECT ... FOR UPDATE`)는 **Spring Data JPA**로 처리한다. `Resource`, `MetricSnapshot`, `Incident`, `IncidentAction`, `AuditLog` 5개 엔티티가 대상이다.
-- 여러 테이블을 JOIN하고 `GROUP BY`, `CASE`, `AVG` 등으로 집계해야 하는 통계성 조회(`/api/analytics/*`)는 **MyBatis**(`AnalyticsMapper.xml`)로 순수 SQL을 직접 작성한다. JPA로도 구현할 수는 있지만, 다중 테이블 집계를 억지로 JPQL/Criteria로 표현하면 가독성이 떨어지고 실행 계획을 예측하기 어려워지므로 역할을 명확히 나눴다.
-
-### 2-4. 데이터 모델 (ERD)
-
-![ERD](docs/images/erd.png)
-
-실제 엔티티 클래스(`Resource`, `MetricSnapshot`, `Incident`, `IncidentAction`, `AuditLog`)의 필드명·타입·Enum 값을 한 줄씩 대조해 작성했다(`docs/images/source/erd.mmd`).
-
-## 3. 핵심 시나리오
-
-```
-운영자                 스케줄러/API              규칙엔진               Incident/Action           AOP 감사로그
-  |                        |                       |                        |                        |
-  | 리소스 등록 -----------> POST /api/resources    |                        |                        |
-  |                        |                       |                        |                        |
-  |                 (7초 주기) 지표 시뮬레이션 생성   |                        |                        |
-  |                 or POST /api/metrics/simulate ->|                        |                        |
-  |                        |                       |                        |                        |
-  |                        |  임계치 초과 판단 ----->| Resource 행 비관적 락  |                        |
-  |                        |                       | -> OPEN 사건 존재? ---> | 없으면 Incident 생성    |
-  |                        |                       |                        | -> 조치(Action) 자동기록|
-  |                        |                       |                        |                        |
-  |                        |                       |          모든 단계  --------------------------->| AuditLog 기록
-  |                        |                       |          (성공/실패 무관)                        | (SUCCESS/FAIL)
-  |                        |                       |                        |                        |
-  | GET /api/incidents/{id} 조회 (조치이력 포함) <----------------------------                        |
-  | PATCH /resolve 처리 ------------------------------------------------->|                        |
-```
-
-1. 운영자가 `POST /api/resources`로 서버/DB/큐/API 타입 리소스를 등록한다.
-2. `@Scheduled(fixedRate=7000)` 스케줄러가 등록된 리소스 전체에 랜덤 지표(CPU/메모리/에러율/큐길이)를 생성한다. 약 10% 확률로 임계치를 넘는 이상치를 섞어 규칙엔진이 자연스럽게 트리거되도록 했다. `POST /api/metrics/simulate`로 수동 트리거도 가능하다(데모용).
-3. `IncidentRuleEngine`이 지표를 검사해 임계치 초과 여부와 심각도를 판정하고, `IncidentDetectionService`가 Resource 행에 비관적 락을 건 뒤 중복 여부를 확인해 `Incident`를 생성한다.
-4. `IncidentActionService`가 심각도와 트리거된 규칙에 따라 조치(MONITOR/ALERT/RESTART/BACKUP/ESCALATE 조합)를 자동 결정·기록하고 상태를 `DETECTED → ANALYZING`으로 전이한다.
-5. 사건은 먼저 기본 템플릿 문장을 `aiSummary`에 담아 커밋된다. 커밋 뒤 `AiSummaryListener`가 전용 스레드풀에서 `AiSummaryService`로 OpenAI API(`gpt-4o-mini`)를 호출해 "왜 이 조치를 했는지" 1~2문장 요약으로 바꿔 쓴다. AI 호출은 락·트랜잭션 밖에서 일어나므로 응답이 느려도 사건 생성 요청은 기다리지 않는다. `OPENAI_API_KEY`가 없거나 호출이 실패하거나 타임아웃(연결·읽기 각 3초, 최악 약 6초)되면 기본 템플릿 문장이 그대로 남는다.
-6. 위 단계(지표 입력·사건 판정·조치 결정·해결 처리)는 `@Auditable` + AOP `@Around`가 가로채 `AuditLog`에 성공/실패 여부와 함께 기록한다. 스케줄러의 지표 생성 자체는 감사 대상이 아니다. 같은 리소스 동시 150건(풀 10)에서 METRIC_SIMULATE 감사가 요청 수와 일치했다(2026-09 재측정). 수정 전에는 같은 부하(풀 60)에서 38~39%만 남았다.
-7. 운영자는 `GET /api/incidents`, `GET /api/incidents/{id}`, `GET /api/analytics/*`로 사건과 통계를 조회하고, 처리가 끝난 사건은 `PATCH /api/incidents/{id}/resolve`로 종료 처리한다(재해결 요청은 멱등하게 무시되어 최초 resolvedAt이 유지된다). 이 두 관리자 전용 엔드포인트(`GET /api/audit-logs`, `PATCH /api/incidents/{id}/resolve`)는 `POST /api/auth/token`으로 발급받은 JWT(`Authorization: Bearer`)가 있어야 호출할 수 있다.
-
-## 4. 판단(규칙엔진) vs 설명(LLM) 역할 분리
-
-![판단·설명 분리 흐름](docs/images/decision-flow.png)
-
-이 프로젝트에서 **"판단"은 전적으로 규칙 기반 엔진(`IncidentRuleEngine`)이 담당한다.** 지표가 임계치(예: 에러율 5% 이상, CPU 90% 이상)를 넘었는지, 심각도를 LOW/MEDIUM/HIGH/CRITICAL 중 무엇으로 매길지, 어떤 조치(MONITOR/ALERT/RESTART/BACKUP/ESCALATE)를 취할지는 모두 if-else 기반 규칙으로 결정되며 결정론적이고 재현 가능하다.
-
-LLM(OpenAI API)은 이 판단 자체를 바꾸지 않는다. 규칙엔진이 이미 내린 결정을 사람이 읽기 쉬운 자연어 1~2문장으로 사후 설명하는 역할만 맡으며, 사건이 커밋된 뒤 비동기로 호출된다. API 호출이 실패하거나 타임아웃(연결·읽기 각 3초)이 발생하면 미리 저장해 둔 폴백 문장이 그대로 남아 전체 흐름을 막지 않는다.
-
-이렇게 역할을 나눈 이유는 "이게 진짜 AI냐"는 과장 논란을 피하기 위해서다. 판단 로직을 LLM에 맡기면 설명력과 재현성이 떨어지고 테스트도 어려워진다. FINOS(Fintech Open Source Foundation)의 AI 거버넌스 프레임워크가 제시하는 감사 요구사항 중 "Tier 2: 명시적 추론이 도구 호출 전에 생성·기록되어야 하며 자연어 설명을 포함해야 한다"는 원칙과도 맞닿아 있다. 즉 규칙엔진의 결정(Decision)이 먼저이고, LLM의 설명(Explanation)은 그 뒤를 따르는 부가 정보라는 순서를 지킨다.
-
-> **현재 구현 상태**: 규칙엔진 기반 판단·조치기록에 이어 OpenAI 연동(`aiSummary` 자동 생성)까지 실제로 라이브 동작 중이다. `Incident.aiSummary`는 실제 LLM이 생성한 자연어 문장이 채워지며, `OPENAI_API_KEY`를 설정하지 않았거나 호출이 실패/타임아웃되는 경우에만 미리 정의한 폴백 문장으로 대체된다(판단 로직 자체는 절대 LLM에 넘기지 않는다는 원칙은 그대로 유지).
-
-## 5. 실행 방법
-
-### 요구 사항
-- JDK 21
-- 별도 DB 설치 불필요 — H2 인메모리 DB를 기본으로 사용
-
-### 빌드 및 실행
+Docker Compose(app + PostgreSQL 16):
 
 ```bash
-# 빌드(테스트 포함)
-./gradlew build
-
-# 서버 실행 (기본 포트 8080)
-./gradlew bootRun
-```
-
-### H2 콘솔 접속
-
-1. 서버 실행 후 브라우저에서 `http://localhost:8080/h2-console` 접속
-2. JDBC URL: `jdbc:h2:mem:opssentinel` / Username: `sa` / Password: (공백)
-
-### (선택, 검증됨) Docker Compose로 한 번에 실행 — app + PostgreSQL
-
-Gradle 로컬 실행 대신, PostgreSQL까지 포함해 컨테이너로 한 번에 띄우고 싶다면:
-
-```bash
-# 1) 환경변수 파일 준비 (DB_PASSWORD 등 값 채우기)
-cp .env.example .env
-
-# 2) app(Dockerfile 빌드) + postgres 함께 기동
+cp .env.example .env     # DB_PASSWORD 등 채우기
 docker compose up -d --build
-
-# 3) 종료
-docker compose down
 ```
 
-- app 컨테이너는 `SPRING_PROFILES_ACTIVE=docker`로 뜨며 `application-docker.yml`(PostgreSQL 접속 설정)을 사용한다. 기본 프로필(H2)과는 완전히 분리되어 있어 `./gradlew test` 등 기존 H2 기반 테스트에는 영향이 없다.
-- postgres 컨테이너의 healthcheck를 통과한 뒤에야 app이 기동된다(`depends_on: condition: service_healthy`).
-- 데이터는 `postgres-data` 볼륨에 영속화되어 `docker compose down` 후에도 유지된다(볼륨까지 지우려면 `docker compose down -v`).
-- 기동 후 접속 경로는 아래 Gradle 실행과 동일하다(`http://localhost:8080/...`).
-- US-024(2026-08-09) 재검증: `docker compose up -d --build`로 app+postgres 정상 기동, `GET /actuator/health`에서 `db` 컴포넌트가 `PostgreSQL`로, `incidentEngine`이 `UP`으로 확인됐다(최신 동시성 수정·HikariCP pool=60 반영 상태 기준).
+- 2026-08-09 당시 기동과 `/actuator/health`의 `db=PostgreSQL`, `incidentEngine=UP`을 확인했다. 2026-09 재측정에서는 Compose를 실행하지 않았다.
+- Compose가 5432 포트를 호스트에 바인딩한다. 로컬에 PostgreSQL이 떠 있으면 기동이 실패한다.
 
-### Swagger UI
+## 알려진 한계
 
-`http://localhost:8080/swagger-ui/index.html` — 전체 API를 문서화된 형태로 확인하고 직접 호출해볼 수 있다.
+- 시뮬레이션 지표만 다룬다. 실제 인프라 수집기는 없다.
+- 스케줄러를 설정으로 끌 수 없다. 키를 넣고 띄워 두면 리소스마다 7초 주기로 이상치가 생겨 요약 호출(과금)이 계속된다.
+- 락 타임아웃 10초, 재시도 3회에 backoff가 없다. 같은 리소스에 경합이 길어지면 409로 끝난다.
+- 테스트와 부하 측정은 H2에서만 했다. PostgreSQL 방언 차이는 CI가 잡지 못한다(Testcontainers 없음).
+- 보안 기본값은 데모용이다: `admin1234`, 인증 없는 `/h2-console`, `show-sql: true`, `ddl-auto: update`, Compose의 5432 노출.
 
-### 대시보드
+## 문서
 
-`http://localhost:8080/dashboard.html` — Swagger 대신 최근 사건 목록과 리소스 위험도 랭킹을 바로 볼 수 있는 정적 페이지(vanilla JS, 인증 불필요).
-
-### 화면 구성 (와이어프레임)
-
-![와이어프레임](docs/images/wireframe.png)
-
-### 헬스체크
-
-`http://localhost:8080/actuator/health` — 기본 헬스체크. 하위 컴포넌트 상세는 `show-details: always` 설정으로 함께 노출된다(예: `/actuator/health` 응답 안의 `incidentEngine` 컴포넌트).
-
-CRITICAL 등급의 미해결 사건이 있으면 `incidentEngine` 컴포넌트가 DOWN으로 바뀌고, 해결(resolve) 처리하면 다시 UP으로 돌아온다 — 실제 로컬 서버로 재현한 캡처:
-
-| ① 초기 UP | ② CRITICAL 발생 → DOWN | ③ resolve 처리 → 다시 UP |
-|---|---|---|
-| ![Actuator UP](docs/images/capture-actuator-up.png) | ![Actuator DOWN](docs/images/capture-actuator-down.png) | ![Actuator UP again](docs/images/capture-actuator-up-after.png) |
-
-## 6. API 목록
-
-![Swagger UI 전체 엔드포인트](docs/images/capture-swagger.png)
-
-`🔒`가 붙은 엔드포인트는 관리자 전용이다 — 먼저 `POST /api/auth/token`으로 JWT를 발급받아
-`Authorization: Bearer <token>` 헤더에 실어 호출해야 하며, 없거나 유효하지 않으면 401을 응답한다.
-
-### Auth
-
-| Method | Path | 설명 |
-|---|---|---|
-| POST | `/api/auth/token` | 고정 admin 계정(`admin.password`, 기본값 `admin1234`) 검증 후 JWT 발급 |
-
-### Resource
-
-| Method | Path | 설명 |
-|---|---|---|
-| POST | `/api/resources` | 리소스 등록(`{name, type}`, type: `SERVER/DATABASE/QUEUE/API`) |
-| GET | `/api/resources` | 리소스 목록 조회 (필터: `type`, 페이징) |
-| GET | `/api/resources/{id}` | 리소스 단건 조회 |
-
-### Metric
-
-| Method | Path | 설명 |
-|---|---|---|
-| POST | `/api/metrics/simulate` | 수동 지표 생성(데모용, 필드 미지정 시 랜덤 값) |
-| GET | `/api/metrics/{resourceId}/latest` | 최신 지표 조회 |
-| GET | `/api/metrics/{resourceId}/history` | 지표 이력 조회(`from`, `to`) |
-
-### Incident
-
-| Method | Path | 설명 |
-|---|---|---|
-| GET | `/api/incidents` | 사건 목록 조회 (필터: `status`, `severity`, `resourceId`, 페이징) |
-| GET | `/api/incidents/{id}` | 사건 상세 조회(조치 이력 + AI 요약 포함) |
-| PATCH | `/api/incidents/{id}/resolve` | 🔒 사건 해결 처리(멱등 — 이미 RESOLVED면 resolvedAt을 재설정하지 않음) |
-
-### Analytics (MyBatis 집계)
-
-| Method | Path | 설명 |
-|---|---|---|
-| GET | `/api/analytics/incident-summary` | 리소스별 사건 건수·심각도 분포·평균 해결시간(분) 집계 (`from`/`to` 기간 필터 optional) |
-| GET | `/api/analytics/resource-health-rank` | 사건 발생 빈도 기준 리소스 위험도 랭킹(사건 없는 리소스도 0건으로 포함) |
-
-### Audit Log
-
-| Method | Path | 설명 |
-|---|---|---|
-| GET | `/api/audit-logs` | 🔒 전체 감사로그 조회 (필터: `actorType`, `resultStatus`, `targetType`, 페이징) |
-
-### Actuator
-
-| Path | 설명 |
+| 문서 | 내용 |
 |---|---|
-| `/actuator/health` | 기본 헬스체크 |
-| `/actuator/health/incidentEngine` | 커스텀: 최근 5분 내 감지되고 미해결(RESOLVED 아님)인 CRITICAL 사건이 있으면 DOWN |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 트러블슈팅 5건 상세 (측정 조건·커밋 포함) |
+| [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md) | 회고 (KPT, 다시 만든다면, 사후 보완 내역) |
+| [CHANGELOG.md](CHANGELOG.md) | 2026-08-09 당시 기록. 당시 표현("100% 달성", "완전히 해결")을 고치지 않고 남겼다. 이 README와 다르면 이 README가 2026-09 재측정 기준이다 |
+| [docs/01_PRD_기획명세서_최종본.md](docs/01_PRD_기획명세서_최종본.md) · [docs/02_API_기능명세서.md](docs/02_API_기능명세서.md) | 기획·API 명세 (2026-08-08) |
+| [docs/07_배경조사_근거자료집.md](docs/07_배경조사_근거자료집.md) | SK AX×대신증권 사례, Google SRE, FINOS 등 배경 근거 |
+| [docs/CLAUDE_CODE_마스터프롬프트.md](docs/CLAUDE_CODE_마스터프롬프트.md) · [docs/08_최종PDF_생성_프롬프트.md](docs/08_최종PDF_생성_프롬프트.md) | AI 에이전트에 넘긴 개발·보고서 생성 지시문 원문 |
+| `docs/pdf/captures/` | 제출 보고서에 쓴 캡처 PNG 28장과 원본 텍스트 로그. 제출 PDF 자체는 교육생 식별정보가 있어 공개 저장소에서 뺐다 |
 
-### 공통 에러 응답
+## 회고
 
-| 코드 | 상황 |
-|---|---|
-| 400 | 잘못된 요청 파라미터/검증 실패/깨진 JSON 본문/정의되지 않은 enum 값 |
-| 401 | 🔒 엔드포인트에 토큰 없이 접근했거나 토큰이 유효하지 않음/만료됨 |
-| 404 | 존재하지 않는 리소스/사건, 혹은 존재하지 않는 경로 |
-| 405 | 해당 경로가 지원하지 않는 HTTP 메서드로 호출됨 |
-| 409 | 동시성 충돌(중복 사건 생성 시도 등) |
-| 500 | 서버 내부 오류 |
+- 8시간 자율 실행으로 스토리 25개와 테스트 46건을 채웠지만, 부하에서만 드러나는 결함은 테스트가 잡지 못했다. 테스트는 AI 호출 경로를 타지 않았고, 40건 동시성 테스트는 감사 건수를 검사하지 않았다.
+- 가장 크게 배운 것은 "증상이 사라졌다"와 "원인을 없앴다"가 다르다는 점이다. 풀 증설은 문턱을 40건에서 150건 사이로 옮겼을 뿐이다.
+- 사후 보완은 재현 테스트 → 수정 → 재측정 → PR 순서로 쌓았다. 상세는 [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md).
 
-모든 에러 응답은 `{timestamp, status, error, message, path}` 공통 포맷을 따른다. Spring MVC가
-컨트롤러 진입 전에 자체적으로 던지는 프레임워크 예외(깨진 JSON, 지원하지 않는 메서드, 존재하지
-않는 경로 등)도 `GlobalExceptionHandler`(`ResponseEntityExceptionHandler` 상속)가 가로채 같은
-포맷으로 응답하므로, 이런 경우에도 500이 아니라 위 표의 알맞은 코드로 응답한다.
+## 라이선스
 
-## 7. 동시성 제어
-
-**"동일 리소스에 중복 사건이 생성되지 않는다"**는 이 프로젝트의 핵심 동시성 제어 지점이다. 동일 `resourceId`에 여러 요청이 거의 동시에 임계치 초과 지표를 만들어내면, 각 요청 스레드가 동시에 "OPEN 사건이 있는지 조회 → 없으면 새로 생성"하는 임계구간에 진입할 수 있고, 이 경우 조회 시점에는 둘 다 "OPEN 사건 없음"으로 판단해 중복 Incident가 생성될 수 있다.
-
-`IncidentDetectionService`는 이 임계구간을 **동일 `resourceId`의 `Resource` 행에 대한 비관적 락(`SELECT ... FOR UPDATE`)**으로 직렬화해서 막는다. 락을 획득한 스레드만 "OPEN 사건 조회 → 없으면 생성"을 수행하고, 나머지 스레드는 락이 풀릴 때까지 대기했다가 순차적으로 같은 검사를 반복하므로 중복 생성이 발생하지 않는다. 락 타임아웃 등 예외 상황에 대비해 최대 3회까지 재시도하며, 재시도가 모두 소진되면 `ConflictException`(409)으로 응답한다.
-
-락 구간은 DB 작업(조회·생성·조치 기록)만 담도록 짧게 유지한다. 락을 잡기 전에 락 없이 OPEN 사건을 먼저 조회해, 이미 있으면 락을 타지 않고 바로 돌려준다(없을 때만 락 안에서 다시 확인하는 double-checked 방식). AI 요약 호출은 커밋 뒤 비동기로 뺐다. 예전에는 AI 호출이 락 안에 있어서, AI 응답이 3초 걸리면 같은 리소스 20건이 전부 3.05초를 기다렸다(2026-09 재측정).
-
-애초 계획은 `Incident.version` 필드를 이용한 낙관적 락이었지만, 다음 이유로 비관적 락으로 전환했다.
-- H2가 부분 unique 인덱스(`resourceId + status=OPEN`)를 지원하지 않아 DB 제약만으로는 중복을 막을 수 없었다.
-- `Incident.version`에 거는 낙관적 락은 이미 존재하는 같은 row를 다시 쓸 때만 충돌을 감지할 뿐, **서로 다른 두 개의 새 row가 동시에 insert되는 상황 자체는 막지 못한다** — 애초에 검사 시점에 "OPEN 사건이 없다"고 두 스레드가 동시에 판단하기 때문이다.
-
-이 때문에 검사와 생성을 감싸는 임계구간 자체를 Resource 행 락으로 직렬화하는 방식을 채택했다.
-
-### 실측 검증
-
-동일 `resourceId`로 `POST /api/metrics/simulate` 10건을 동시에 보내도 HTTP 201은 10건 모두 성공하지만, 실제 생성된 OPEN(DETECTED/ANALYZING) Incident는 정확히 1건만 남는다:
-
-![동시성 테스트 통과](docs/images/capture-concurrency.png)
-
-## 8. 감사로그(AOP)
-
-모든 처리 결과(성공/실패 무관)를 사람이 사후에 검증할 수 있도록 `AuditLog`에 남긴다. 이를 위해 도메인 서비스 코드 안에 로깅 코드를 직접 흩뿌리지 않고, `@Auditable` 커스텀 애노테이션 + AOP `@Around` 어드바이스(`AuditLogAspect`)로 관심사를 분리했다.
-
-- `@Auditable`이 붙은 메서드(`MetricService.simulate`, `IncidentDetectionService.detectAndCreate`, `IncidentActionService.decideAndRecord`, `IncidentQueryService.resolve`)의 호출을 `AuditLogAspect`가 가로챈다.
-- 대상 메서드가 정상 반환하면 `AuditLogRecorder.recordSuccess(...)`를, 예외를 던지면 `recordFailure(...)`를 호출해 `AuditLog`를 저장한다. 이때 원래 예외는 그대로 다시 던져(rethrow) 호출자(컨트롤러 등)의 정상적인 에러 처리 흐름을 막지 않는다. `AuditLogAspect`가 이 호출 자체를 try-catch로 한 번 더 감싸므로, 감사로그 저장(REQUIRES_NEW 트랜잭션)이 커넥션풀 고갈 등으로 자체 실패하더라도 그 실패가 원래 예외를 덮어쓰고 대신 전파되는 일은 없다 — 감사기록 실패는 로그로만 남고 원래 처리 결과가 그대로 클라이언트까지 간다.
-- 트랜잭션 밖에서 호출된 메서드(`MetricService.simulate`, `IncidentDetectionService.detectAndCreate`)의 기록은 `@Transactional(propagation = REQUIRES_NEW)`로 **별도의 새 트랜잭션**에서 저장한다. 처리 로직이 실패해 롤백되더라도 감사로그는 남는다.
-- 비관적 락을 쥔 트랜잭션 안에서 호출되는 `IncidentActionService.decideAndRecord`의 성공 기록은 **같은 트랜잭션**에 넣는다. REQUIRES_NEW로 커넥션을 하나 더 빌리면, 락 대기 요청들이 풀을 다 쥐었을 때 락 보유 스레드가 멈추는 교착이 생겼기 때문이다(2026-09 재측정). 대신 이 기록은 사건·조치 행과 함께 커밋되거나 함께 롤백된다. 트랜잭션 안의 실패 기록은 롤백이 끝난 뒤(락 해제 후) 별도 트랜잭션으로 남긴다.
-- targetId는 대상 메서드의 반환값에서 우선 추출하되, 반환 타입이 `Optional`이면 그 값을 있는 그대로 존중한다 — `Optional.empty()`(예: 정상 지표라 Incident를 생성하지 않은 경우)는 "타겟이 없다"는 확정적인 신호이므로 targetId를 `null`로 남기고, 호출 인자로 되돌아가 엉뚱한 다른 엔티티의 id를 잘못 채워 넣지 않는다(예: 존재하지도 않는 Incident id를 가리키는 감사로그가 남는 문제 방지). Optional이 아닌 반환값(예: void 메서드)에서만 인자에서 id를 보조적으로 찾는다.
-
-커넥션 풀 크기 이력: 락 보유 스레드의 REQUIRES_NEW 추가 커넥션 때문에 10→30(US-006), 40건 동시요청 대응으로 30→60(2026-08-09)까지 늘렸다. 2026-09에 원인(OSIV의 요청 단위 커넥션 점유, 락 안 REQUIRES_NEW, 락 안 AI 호출)을 구조로 없애고 기본값 10으로 되돌렸다(`application.yml` 주석 참고).
-
-## 9. 현재 진행 상태
-
-**P0~P2 전체 완료(v1.0.1)** — 마스터플랜의 모든 스프린트가 끝났다. 지표 시뮬레이션부터
-이상탐지, 사건/조치 자동 기록, OpenAI 연동 자연어 요약(`aiSummary`), JWT 기반 관리자 엔드포인트
-보호, AOP 감사로그, 전역 예외처리(Spring MVC 프레임워크 예외 포함), Resource/Incident/
-Analytics/AuditLog/Auth 전체 API, MyBatis 집계(H2·PostgreSQL 양쪽 호환), Actuator 커스텀
-헬스 인디케이터, Docker Compose(app+PostgreSQL) 원커맨드 기동, 정적 대시보드 페이지까지 API
-호출만으로 전체 시나리오를 재현할 수 있는 상태다.
-
-v1.0.1은 독립 architect 검증에서 REJECTED 판정을 받은 감사로그 무결성·예외처리·MyBatis
-DB호환성 결함 5건(C1~C5)을 전부 실제 재현 후 수정한 릴리스다 — 자세한 내용은
-`CHANGELOG.md`의 `[1.0.1]` 섹션 참고. 더 이상 미완료 항목은 없으며, 남은 것은 10장에 정직하게
-밝힌 알려진 한계(known limitation)뿐이다.
-
-## 10. 한계 및 정직하게 밝힐 부분
-
-- 본 프로젝트는 **실제 인프라가 아닌 시뮬레이션 데이터** 기반이다. 학술 논문이나 FINOS 문서가 전제하는 "실제 프로덕션 규모의 로그·트래픽"을 다루지 않는다.
-- OpenAI API 활용은 "판단"이 아니라 어디까지나 **사후 자연어 설명 생성**에 국한한다(4장 참고). 이는 기술적 한계가 아니라, 판단의 신뢰성·재현성을 지키고 과장을 막기 위한 의도적인 설계다.
-- 배경 지식으로 참고한 SK AX × 대신증권 사례는 공식 뉴스룸(1차 소스) URL을 확인했으나, 이 저장소 작업 과정에서 원문을 직접 캡처하지는 못했고 대신 4개 이상의 독립 언론 보도로 계약 규모·1단계 적용범위(모니터링/백업/장애관리 에이전트)를 교차검증했다. 관련 상세 출처와 등급 평가는 `docs/07_배경조사_근거자료집.md`의 C장에 정리되어 있다.
-- MSA 분리, K8s, 실서버(AWS 등) 배포는 범위에서 제외했다. 시간이 제한된 개인 과제에서 리스크 대비 실익이 낮다고 판단했기 때문이며, `docs/01_PRD_기획명세서_최종본.md` 3-1장에 그 근거를 기록해 두었다.
-- **JWT secret 미고정 시 재기동마다 토큰이 무효화된다.** `jwt.secret`(`JWT_SECRET` 환경변수)을 비워두면 `JwtTokenProvider`가 기동 시 랜덤 키를 생성해서라도 동작하게 만드는데, 이는 데모/로컬 실행 편의를 위한 의도적 타협이다. 여러 인스턴스로 스케일하거나 재기동이 잦은 환경에서는 반드시 `JWT_SECRET`을 고정값으로 지정해야 한다.
-- **`/h2-console`이 별도 인증 없이 노출되어 있다.** 기본 프로필(H2)로 로컬 실행할 때 `spring.h2.console.enabled=true`가 켜져 있어 누구나 브라우저로 접속해 DB를 조회/조작할 수 있다. 로컬 데모 편의를 위한 설정이며, PostgreSQL을 쓰는 Docker Compose 프로필에는 이 콘솔 자체가 해당되지 않는다(H2 전용). 운영에 준하는 환경에 배포한다면 반드시 비활성화해야 한다.
-- 관리자 로그인은 계정 하나(`admin`/`admin.password`)만 존재하는 최소 구현이다. 회원가입, 역할(role) 구분, 토큰 재발급/폐기(refresh/revoke) 같은 정식 인가 체계는 없다 — 이 프로젝트 스케일에서는 과설계라고 판단해 의도적으로 범위에서 제외했다(5장 JWT 관련 설명 참고).
-
-## 11. 향후 발전 계획
-
-제출 기준으로는 완결됐지만, 포트폴리오로서 더 다듬을 수 있는 지점을 우선순위별로 정리한다.
-
-### 우선순위 1 — 이 프로젝트 정체성 심화
-
-- **SK AX 2단계 에이전트(성능/용량/가용/보안 중 1개) 추가** — 1장에서 인용한 사례는 "1단계 시범적용 → 2단계 확대"로 설계돼 있다. 지금의 이상탐지 규칙엔진이 1단계(모니터링·장애관리 축)에 해당하니, 성능·용량·가용성·보안 중 하나를 2단계 에이전트로 실제 구현하면 배경조사에서 그친 개념을 코드로 완성하는 셈이 된다.
-- **FINOS Tier 3 감사보고서 자동생성 API** — 지금은 감사 로그를 남기기만 할 뿐 사람이 판단하려면 직접 쿼리해야 한다. 쌓인 `AuditLog`를 기간별로 집계해 사람이 바로 읽을 수 있는 요약 보고서로 뽑아내는 API를 추가하면, FINOS 거버넌스 문서가 요구하는 감사 가능성을 한 단계 더 실질적으로 충족하게 된다.
-- **검증가능성 자체를 chaos-test 스크립트로 도구화** — 이번 콜드스타트 채점에서 40~150건 동시요청 재현을 매번 수동으로 돌리며 검증했다. 이 과정을 재사용 가능한 스크립트나 CI 잡으로 만들어두면, 앞으로 코드가 바뀔 때마다 "정말 안전한가"를 사람이 다시 손으로 재현하지 않고도 확인할 수 있다.
-
-### 우선순위 2 — 상위권 동기 공통 요소
-
-- **SSE 기반 실시간 대시보드** — 지금 대시보드(`dashboard.html`)는 10초 폴링으로 갱신된다. Server-Sent Events로 바꾸면 사건 발생을 폴링 지연 없이 바로 반영할 수 있어, "실시간 운영 대시보드"라는 원래 콘셉트에 더 가까워진다.
-- **Testcontainers 통합테스트** — 지금 테스트는 전부 H2 인메모리 기준이라, C4에서 드러났던 PostgreSQL과의 SQL 방언 차이(`DATEDIFF` 등)는 Docker Compose를 수동으로 띄워야만 확인된다. Testcontainers로 실제 PostgreSQL 컨테이너를 테스트에 편입하면 이런 차이를 CI 단계에서 자동으로 잡아낼 수 있다.
-- **RBAC 확장** — 지금은 admin 계정 하나로만 관리자 엔드포인트를 보호한다(10장 한계 참고). 역할(role) 개념을 도입하면 운영자/조회자처럼 권한을 세분화할 수 있어, 실제 조직에서 쓰는 백엔드에 더 가까운 인가 모델이 된다.
-
-### 우선순위 3 — 장기, 시간 날 때
-
-- **Kafka 기반 이벤트 파이프라인** — 지표 시뮬레이션·이상탐지·조치기록을 지금처럼 동기 호출 체인이 아니라 이벤트로 느슨하게 연결하면, 나중에 소비자를 추가하거나 여러 인스턴스로 확장하기 쉬워진다.
-- **실제 클라우드 배포** — `docs/01_PRD_기획명세서_최종본.md` 3-1장에서 "제출 완료 후 포트폴리오용으로 하고 싶으면 그때 별도 진행"이라고 명시적으로 미뤄둔 항목이다. AWS 등 실서버에 올려 배포 파이프라인까지 갖추면 이 계획을 마무리 짓게 된다.
-- **RAG 기반 유사사건 회고** — 지금은 매 사건을 독립적으로 판단한다. 과거 유사 Incident를 벡터검색으로 찾아 "비슷한 사건이 이전에도 있었고 그때는 이렇게 처리했다"는 근거를 판단에 보태면, 규칙엔진의 결정에 과거 이력이라는 맥락을 더할 수 있다.
-- **자기관측(Observability)** — 지금 이 시스템은 다른 인프라를 감시하지만 정작 자기 자신의 메트릭·트레이싱은 없다. Ops Sentinel 스스로에게도 같은 원칙(감시 가능해야 신뢰할 수 있다)을 적용하는 마지막 단계다.
+[MIT](LICENSE) © 2026 Byeongheon Jang
